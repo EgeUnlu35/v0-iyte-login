@@ -1,10 +1,13 @@
 import Image from "next/image"
 import { redirect } from "next/navigation"
 import { logout, checkAuth, getSession } from "@/app/actions/auth"
+import { uploadCSV } from "@/app/actions/admin"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
-import { ArrowLeft, Settings, Users, Database, Shield, Activity, Server } from "lucide-react"
+import { ArrowLeft, Upload, FileText, CheckCircle, AlertCircle } from "lucide-react"
+import CSVUploadForm from "@/components/csv-upload-form"
+import CSVFormatExample from "@/components/csv-format-example"
 
 export default async function AdminPage() {
   const isAuthenticated = await checkAuth()
@@ -33,7 +36,7 @@ export default async function AdminPage() {
               height={40}
               className="rounded-full hidden sm:block"
             />
-            <h1 className="text-xl font-bold">System Admin Portal</h1>
+            <h1 className="text-xl font-bold">Admin Panel - Allowed Users Upload</h1>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -46,155 +49,71 @@ export default async function AdminPage() {
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-6 py-8">
+      <main className="flex-1 container mx-auto px-6 py-8 max-w-4xl">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">System Admin Portal</h2>
-          <p className="text-gray-600">Manage system settings, users, and monitor system health</p>
+          <h2 className="text-3xl font-bold mb-2">Upload Allowed Users</h2>
+          <p className="text-gray-600">Upload CSV file to add allowed users to the system</p>
         </div>
 
-        {/* System Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold">1,247</p>
-                </div>
-                <Users className="w-8 h-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">System Uptime</p>
-                  <p className="text-2xl font-bold">99.9%</p>
-                </div>
-                <Activity className="w-8 h-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Database Size</p>
-                  <p className="text-2xl font-bold">2.4GB</p>
-                </div>
-                <Database className="w-8 h-8 text-orange-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Security Alerts</p>
-                  <p className="text-2xl font-bold">0</p>
-                </div>
-                <Shield className="w-8 h-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <Users className="w-8 h-8 mx-auto mb-3 text-blue-500" />
-              <h3 className="font-medium mb-2">User Management</h3>
-              <p className="text-sm text-gray-600">Manage user accounts and roles</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <Settings className="w-8 h-8 mx-auto mb-3 text-green-500" />
-              <h3 className="font-medium mb-2">System Settings</h3>
-              <p className="text-sm text-gray-600">Configure system parameters</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <Database className="w-8 h-8 mx-auto mb-3 text-purple-500" />
-              <h3 className="font-medium mb-2">Database Management</h3>
-              <p className="text-sm text-gray-600">Monitor and maintain database</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <Shield className="w-8 h-8 mx-auto mb-3 text-orange-500" />
-              <h3 className="font-medium mb-2">Security Center</h3>
-              <p className="text-sm text-gray-600">Monitor security and access</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <Activity className="w-8 h-8 mx-auto mb-3 text-pink-500" />
-              <h3 className="font-medium mb-2">System Monitoring</h3>
-              <p className="text-sm text-gray-600">View system performance</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <Server className="w-8 h-8 mx-auto mb-3 text-indigo-500" />
-              <h3 className="font-medium mb-2">Server Management</h3>
-              <p className="text-sm text-gray-600">Manage server resources</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* System Status */}
-        <Card>
+        {/* Upload Instructions */}
+        <Card className="mb-8">
           <CardHeader>
-            <CardTitle>System Status</CardTitle>
-            <CardDescription>Current system health and recent activities</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              CSV Format Requirements
+            </CardTitle>
+            <CardDescription>Your CSV file must include the following columns</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">Database Backup</p>
-                  <p className="text-sm text-gray-600">Last backup completed successfully</p>
-                  <p className="text-xs text-gray-500">2 hours ago</p>
-                </div>
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Healthy</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h4 className="font-medium text-green-700 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Required Columns
+                </h4>
+                <ul className="text-sm text-gray-600 space-y-1 ml-6">
+                  <li>
+                    • <strong>email</strong>: User's email address
+                  </li>
+                  <li>
+                    • <strong>role</strong>: User role (ADMIN, STUDENT, etc.)
+                  </li>
+                  <li>
+                    • <strong>studentId</strong>: Required for STUDENT role
+                  </li>
+                  <li>• First row must contain column headers</li>
+                </ul>
               </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">User Authentication</p>
-                  <p className="text-sm text-gray-600">All authentication services running</p>
-                  <p className="text-xs text-gray-500">Active</p>
-                </div>
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Healthy</span>
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">API Services</p>
-                  <p className="text-sm text-gray-600">All endpoints responding normally</p>
-                  <p className="text-xs text-gray-500">Response time: 120ms avg</p>
-                </div>
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Healthy</span>
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-medium">Storage Usage</p>
-                  <p className="text-sm text-gray-600">Database storage at 65% capacity</p>
-                  <p className="text-xs text-gray-500">2.4GB / 3.7GB used</p>
-                </div>
-                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Monitor</span>
+              <div className="space-y-3">
+                <h4 className="font-medium text-orange-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  Important Notes
+                </h4>
+                <ul className="text-sm text-gray-600 space-y-1 ml-6">
+                  <li>• Duplicate emails will cause an error</li>
+                  <li>• All fields are required for each row</li>
+                  <li>• studentId is mandatory for STUDENT role</li>
+                  <li>• Invalid data will be rejected</li>
+                </ul>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* CSV Format Example */}
+        <CSVFormatExample />
+
+        {/* CSV Upload Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5" />
+              Upload Allowed Users CSV
+            </CardTitle>
+            <CardDescription>Select a CSV file containing user information to upload</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CSVUploadForm uploadAction={uploadCSV} />
           </CardContent>
         </Card>
       </main>

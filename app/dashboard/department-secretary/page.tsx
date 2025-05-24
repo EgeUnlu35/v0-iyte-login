@@ -1,18 +1,21 @@
-import { redirect } from "next/navigation";
-import { checkAuth, getSession } from "@/app/actions/auth";
-import DepartmentSecretaryClientLayout from "./DepartmentSecretaryClientLayout";
+import { redirect } from "next/navigation"
+import { checkAuth, getSession } from "@/app/actions/auth"
+import { getAllGraduationLists } from "@/app/actions/depsec"
+import DepartmentSecretaryClientLayout from "./DepartmentSecretaryClientLayout"
 
 export default async function DepartmentSecretaryPage() {
-  const isAuthenticated = await checkAuth();
+  const isAuthenticated = await checkAuth()
   if (!isAuthenticated) {
-    redirect("/login?from=/dashboard/department-secretary");
+    redirect("/login?from=/dashboard/department-secretary")
   }
 
-  const session = await getSession();
-  // TODO: Check role from session, if not department-secretary, redirect or show error
-  const userName = session?.name || "Department Secretary";
+  const session = await getSession()
+  const userName = session?.name || "Department Secretary"
 
-  // TODO: Fetch any necessary data specific to the department secretary role
+  // Fetch graduation lists
+  const listsResult = await getAllGraduationLists()
+  const graduationLists = listsResult.success ? listsResult.data : []
+  const error = listsResult.error || null
 
-  return <DepartmentSecretaryClientLayout userName={userName} />;
+  return <DepartmentSecretaryClientLayout userName={userName} graduationLists={graduationLists} error={error} />
 }

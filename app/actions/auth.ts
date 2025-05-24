@@ -11,6 +11,7 @@ type UserDto = {
   email: string
   firstName: string
   lastName: string
+  role: string
 }
 
 // Updated token structure to match the actual API response
@@ -151,6 +152,7 @@ export async function login(formData: FormData) {
         email: "egeunlu@std.iyte.edu.tr",
         firstName: "Ege",
         lastName: "Unlu",
+        role: "STUDENT",
       }
 
       // Create mock token
@@ -163,13 +165,13 @@ export async function login(formData: FormData) {
       const session = {
         email: userData.email,
         name: `${userData.firstName} ${userData.lastName}`,
-        role: "student",
+        role: userData.role,
         isAuthenticated: true,
       }
 
       // Store token in HTTP-only cookie
-      cookies().set("auth_token", tokenData.token, {
-        // Changed from accessToken to token
+      const cookieStore = await cookies()
+      cookieStore.set("auth_token", tokenData.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         maxAge: tokenData.expiresIn,
@@ -178,7 +180,7 @@ export async function login(formData: FormData) {
       })
 
       // Store session in cookie
-      cookies().set("session", JSON.stringify(session), {
+      cookieStore.set("session", JSON.stringify(session), {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         maxAge: tokenData.expiresIn,
@@ -251,13 +253,13 @@ export async function login(formData: FormData) {
     const session = {
       email: data.user.email,
       name: `${data.user.firstName} ${data.user.lastName}`,
-      role: "student",
+      role: data.user.role,
       isAuthenticated: true,
     }
 
     // Store token in HTTP-only cookie
-    cookies().set("auth_token", data.token.token, {
-      // Changed from accessToken to token
+    const cookieStore = await cookies()
+    cookieStore.set("auth_token", data.token.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: data.token.expiresIn,
@@ -266,7 +268,7 @@ export async function login(formData: FormData) {
     })
 
     // Store session in cookie
-    cookies().set("session", JSON.stringify(session), {
+    cookieStore.set("session", JSON.stringify(session), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: data.token.expiresIn,
@@ -289,11 +291,13 @@ export async function register(formData: FormData) {
   const email = formData.get("email") as string
   const password = formData.get("password") as string
   const confirmPassword = formData.get("confirmPassword") as string
+  const role = formData.get("role") as string
+  const studentId = formData.get("studentId") as string
 
   // Validate form data
-  if (!firstName || !lastName || !email || !password || !confirmPassword) {
-    console.error("All fields are required")
-    return { error: "All fields are required to create an account." }
+  if (!firstName || !lastName || !email || !password || !confirmPassword || !role) {
+    console.error("All required fields must be filled")
+    return { error: "All required fields are required to create an account." }
   }
 
   // Validate email
@@ -313,19 +317,33 @@ export async function register(formData: FormData) {
     return { error: "Passwords do not match. Please ensure both passwords are identical." }
   }
 
+  // Validate studentId for STUDENT role
+  if (role === "STUDENT" && !studentId) {
+    return { error: "Student ID is required for student registration." }
+  }
+
   try {
+    // Prepare request body
+    const requestBody: any = {
+      email,
+      password,
+      firstName,
+      lastName,
+      role,
+    }
+
+    // Add studentId only if role is STUDENT
+    if (role === "STUDENT" && studentId) {
+      requestBody.studentId = studentId
+    }
+
     // Make API request to register endpoint
     const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        email,
-        password,
-        firstName,
-        lastName,
-      }),
+      body: JSON.stringify(requestBody),
       cache: "no-store",
     })
 
@@ -365,15 +383,17 @@ export async function register(formData: FormData) {
 
 export async function logout() {
   // Delete the auth token and session cookies
-  cookies().delete("auth_token")
-  cookies().delete("session")
+  const cookieStore = await cookies()
+  cookieStore.delete("auth_token")
+  cookieStore.delete("session")
 
   // Redirect to home page
   redirect("/")
 }
 
 export async function getSession() {
-  const session = cookies().get("session")?.value
+  const cookieStore = await cookies()
+  const session = cookieStore.get("session")?.value
 
   if (!session) {
     return null
@@ -383,7 +403,8 @@ export async function getSession() {
 }
 
 export async function getAuthToken() {
-  return cookies().get("auth_token")?.value
+  const cookieStore = await cookies()
+  return cookieStore.get("auth_token")?.value
 }
 
 export async function checkAuth() {

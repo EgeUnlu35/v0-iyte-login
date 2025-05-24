@@ -1,23 +1,21 @@
-import { redirect } from "next/navigation";
-import { checkAuth, getSession } from "@/app/actions/auth";
-import StudentClientLayout from "./StudentClientLayout"; // Import the new client component
+import { redirect } from "next/navigation"
+import { checkAuth, getSession } from "@/app/actions/auth"
+import { getMyApplication } from "@/app/actions/student"
+import StudentClientLayout from "./StudentClientLayout"
 
-// This page is now a Server Component and can be async
 export default async function StudentPage() {
-  // Check if the user is authenticated
-  const isAuthenticated = await checkAuth();
-
-  // If not authenticated, redirect to login
+  const isAuthenticated = await checkAuth()
   if (!isAuthenticated) {
-    redirect("/login?from=/dashboard/student"); // Added 'from' query param for redirect after login
+    redirect("/login?from=/dashboard/student")
   }
 
-  // Get user session
-  const session = await getSession();
-  const userName = session?.name || "Student";
+  const session = await getSession()
+  const userName = session?.name || "Student"
 
-  // TODO: Fetch other necessary student data here (e.g., application status, progress, issues)
-  // For now, we'll just pass the userName
+  // Fetch student's application if exists
+  const applicationResult = await getMyApplication()
+  const application = applicationResult.success ? applicationResult.data : null
+  const applicationError = applicationResult.error || null
 
-  return <StudentClientLayout userName={userName} />;
+  return <StudentClientLayout userName={userName} application={application} applicationError={applicationError} />
 }
