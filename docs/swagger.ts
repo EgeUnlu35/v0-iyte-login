@@ -13,7 +13,7 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: process.env.APP_URL || 'http://localhost:5000',
+        url: 'http://51.21.202.179:5000/',
         description: 'Development server',
       },
     ],
