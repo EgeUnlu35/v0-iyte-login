@@ -19,6 +19,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// Enum for roles based on Swagger definition
+enum UserRole {
+  STUDENT = "STUDENT",
+  ADVISOR = "ADVISOR",
+  DEPARTMENT_SECRETARY = "DEPARTMENT_SECRETARY",
+  DEPARTMENT_CHAIR = "DEPARTMENT_CHAIR",
+  FACULTY_SECRETARY = "FACULTY_SECRETARY",
+  STUDENT_AFFAIRS = "STUDENT_AFFAIRS",
+  ADMIN = "ADMIN",
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -31,6 +49,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<UserRole | undefined>(undefined);
+  const [studentId, setStudentId] = useState("");
 
   // Password strength state
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -94,6 +114,8 @@ export default function RegisterPage() {
     const emailValue = formData.get("email") as string;
     const passwordValue = formData.get("password") as string;
     const confirmPasswordValue = formData.get("confirmPassword") as string;
+    const roleValue = formData.get("role") as UserRole | null;
+    const studentIdValue = formData.get("studentId") as string | null;
 
     // Reset error
     setError(null);
@@ -116,9 +138,30 @@ export default function RegisterPage() {
       return;
     }
 
+    // Validate role selection
+    if (!roleValue) {
+      setError("Please select a role");
+      return;
+    }
+
+    // Validate Student ID if role is STUDENT
+    if (roleValue === UserRole.STUDENT && !studentIdValue) {
+      setError("Student ID is required for student registration");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
+      // Add role to formData before sending
+      formData.set("role", roleValue);
+      if (roleValue === UserRole.STUDENT && studentIdValue) {
+        formData.set("studentId", studentIdValue);
+      } else {
+        // Ensure studentId is not sent if not applicable
+        formData.delete("studentId");
+      }
+
       const result = await register(formData);
 
       if (result?.error) {
@@ -239,6 +282,49 @@ export default function RegisterPage() {
                   )}
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                    name="role"
+                    onValueChange={(value: string) =>
+                      setRole(value as UserRole)
+                    }
+                    disabled={isLoading}
+                    required
+                  >
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(UserRole).map((roleValue) => (
+                        <SelectItem key={roleValue} value={roleValue}>
+                          {roleValue
+                            .toLowerCase()
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, (char) => char.toUpperCase())}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {role === UserRole.STUDENT && (
+                  <div className="space-y-2">
+                    <Label htmlFor="studentId">Student ID</Label>
+                    <Input
+                      id="studentId"
+                      name="studentId"
+                      placeholder="e.g., 123456789"
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value)}
+                      maxLength={20}
+                      required={role === UserRole.STUDENT}
+                      disabled={isLoading}
+                      className="bg-white"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
                     <Input
@@ -335,9 +421,9 @@ export default function RegisterPage() {
                   className="w-full bg-[#990000] hover:bg-[#7a0000]"
                   disabled={
                     isLoading ||
-                    (email && !validateEmail(email)) ||
-                    (password && passwordStrength < 75) ||
-                    (confirmPassword && !validatePasswordMatch())
+                    (!!email && !validateEmail(email)) ||
+                    (!!password && passwordStrength < 75) ||
+                    (!!confirmPassword && !validatePasswordMatch())
                   }
                 >
                   {isLoading ? (
