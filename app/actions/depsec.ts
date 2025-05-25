@@ -4,386 +4,582 @@ import { getAuthToken } from "./auth"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.iyte-gms.com"
 
-// Types based on backend DTOs
-export type GraduationStatus = "NEW" | "UNDER_REVIEW" | "PENDING_ISSUES" | "APPROVED" | "REJECTED" | "COMPLETED"
+// --- Generic Error and Success Response Types ---
+export interface ApiErrorResponse {
+  message: string;
+  // For errors that include field-specific details
+  errors?: { field: string; message: string }[];
+  // For specific error responses like CSV import or list approval
+  validationResults?: ImportValidationResult;
+  invalidEntries?: InvalidEntryDetail[];
+}
 
-export interface GraduationList {
-  id: string
-  name: string
-  description: string
-  createdAt: string
-  entriesCount: number
+export interface SuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+export interface SuccessMessageResponse {
+  success: true;
+  message: string;
+}
+
+export interface ErrorResponse {
+  success?: false; // To make it compatible when success field is expected
+  error: string; // General error message
+  details?: any; // For specific error data like validationResults or invalidEntries
+}
+
+
+// --- Type Definitions based on Schemas ---
+
+export type GraduationEntryStatus = "NEW" | "UNDER_REVIEW" | "PENDING_ISSUES" | "APPROVED" | "REJECTED" | "COMPLETED";
+// export type ApplicationStatus // This would be from student or a shared types file, if needed for depsec context.
+
+export interface GraduationListSummary {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string; // format: date-time
+  entriesCount: number;
 }
 
 export interface GraduationEntry {
-  id: string
-  studentId: string
-  studentName: string
-  studentLastName: string
-  gpa: number
-  graduationDate: string
-  department: string
-  creditsEarned: number
-  status: GraduationStatus
-  notes?: string
+  id: string; // format: uuid
+  studentId: string;
+  studentName: string;
+  studentLastName: string;
+  gpa: number; // minimum: 0, maximum: 4
+  graduationDate: string; // format: date
+  department: string;
+  creditsEarned: number; // minimum: 0
+  status: GraduationEntryStatus;
+  notes?: string;
 }
 
+// For GET /api/graduation/{id}
 export interface GraduationListDetail {
-  id: string
-  name: string
-  description: string
-  createdAt: string
-  entries: GraduationEntry[]
+  id: string; // format: uuid
+  name: string;
+  description: string;
+  // createdAt: string; // Not in the schema for GraduationList, but often present in detailed views. Keeping it out to strictly follow schema.
+  entries: GraduationEntry[];
 }
 
-export interface ValidationError {
-  field: string
-  message: string
+export interface UpdateGraduationEntryPayload {
+  studentId?: string;
+  studentName?: string;
+  studentLastName?: string;
+  gpa?: number; // minimum: 2.5, maximum: 4 in swagger for PUT, but GraduationEntry schema is 0-4. Using 0-4 for consistency.
+  graduationDate?: string; // format: date
+  department?: string;
+  creditsEarned?: number; // minimum: 140 in swagger for PUT
+  status?: "UNDER_REVIEW" | "PENDING_ISSUES"; // As per swagger for PUT
+  notes?: string;
 }
 
-export interface UpdateGraduationEntry {
-  studentId?: string
-  studentName?: string
-  studentLastName?: string
-  gpa?: number
-  graduationDate?: string
-  department?: string
-  creditsEarned?: number
-  status?: "UNDER_REVIEW" | "PENDING_ISSUES"
-  notes?: string
+export interface ImportValidationResultErrorDetail {
+  field: string;
+  message: string;
 }
 
-// Create graduation list from CSV
-export async function createGraduationList(formData: FormData) {
-  try {
-    const token = await getAuthToken()
-    if (!token) {
-      return { error: "Authentication required. Please log in again." }
+export interface ImportValidationResultRowError {
+  row: number;
+  errors: ImportValidationResultErrorDetail[];
+}
+
+export interface ImportValidationResult {
+  isValid: boolean;
+  errors?: ImportValidationResultRowError[];
+  validEntries?: GraduationEntry[];
+  summary?: {
+    total: number;
+    valid: number;
+    invalid: number;
+  };
+}
+
+// For POST /api/graduation (on 400 error)
+interface CreateGraduationListErrorResponse extends ErrorResponse {
+  details?: { validationResults: ImportValidationResult };
+}
+
+// For POST /api/graduation/approve/{graduationListId} (on 400 error)
+export interface InvalidEntryDetail {
+  id: string; // format: uuid
+  studentId: string;
+  studentName: string;
+  studentLastName: string;
+  errors: { field: string; message: string }[];
+}
+interface ApproveGraduationListErrorResponse extends ErrorResponse {
+  details?: { invalidEntries: InvalidEntryDetail[] };
+}
+
+// For GET /api/graduation/graduation-rankings/{id}
+export interface GraduationRankingItem {
+  rank: number;
+  studentId: string;
+  studentName: string;
+  studentLastName: string;
+  gpa: number;
+  department: string;
+  graduationDate: string; // format: date-time
+}
+
+// For POST /api/graduation/{id}/cover-letter
+export interface GenerateCoverLetterRequest {
+  notes: string; // minLength: 1
+}
+
+export interface CoverLetterResponseData {
+  message: string;
+  entry: GraduationEntry;
+}
+
+// For GET /api/graduation/{id}/cover-letter
+export interface CoverLetterData {
+  studentId: string;
+  studentName: string;
+  studentLastName: string;
+  gpa: number;
+  graduationDate: string; // format: date
+  department: string;
+  creditsEarned: number;
+  status: GraduationEntryStatus;
+  notes?: string;
+}
+
+// For POST /api/graduation/entries/validate
+export interface ValidateGraduationEntryFieldsRequest {
+  gpa?: number;
+  graduationDate?: string;
+  creditsEarned?: number;
+}
+
+export interface ValidateGraduationEntryFieldsResponse {
+  isValid: boolean;
+  errors?: { field: string; message: string }[];
+}
+
+// For GET /api/graduation/approved-applications
+export interface ApprovedApplication {
+  id: string; // format: uuid
+  studentId: string;
+  studentName: string;
+  studentLastName: string;
+  submissionDate: string; // format: date-time
+  gpaOverall: number;
+  totalCredits: number;
+  departmentName: string;
+}
+
+export interface ApprovedApplicationsResponseData {
+  applications: ApprovedApplication[];
+  total: number;
+}
+
+// For POST /api/graduation/map-application-to-graduation-entry
+export interface MapApplicationToEntryRequest {
+  applicationId: string; // format: uuid
+  graduationListId: string; // format: uuid
+}
+
+export interface MapApplicationToEntryResponseData {
+  message: string;
+  graduationListId: string; // format: uuid
+  entryId: string; // format: uuid
+}
+
+// --- Helper for Error Handling ---
+async function handleApiResponse(response: Response) {
+  if (!response.ok) {
+    let errorData: any = {};
+    try {
+      errorData = await response.json();
+    } catch (e) {
+      // If response is not JSON (e.g. plain text or HTML error page)
+      const text = await response.text().catch(() => "Failed to read error response text.");
+      errorData = { message: `Server returned ${response.status}. Response: ${text.substring(0, 200)}` };
     }
+    
+    const errorMessage = errorData.message || errorData.detail || `Request failed with status ${response.status}`;
+    // Include specific details if present
+    const details: any = {};
+    if (errorData.validationResults) details.validationResults = errorData.validationResults;
+    if (errorData.invalidEntries) details.invalidEntries = errorData.invalidEntries;
+    if (errorData.errors) details.errors = errorData.errors;
+
+    return { error: errorMessage, details: Object.keys(details).length > 0 ? details : undefined };
+  }
+  // For 204 No Content or other non-JSON success responses for specific endpoints
+  if (response.status === 204 || response.headers.get("content-length") === "0") {
+      return { success: true, data: null }; // Or an appropriate success marker
+  }
+  // For CSV download which returns blob
+  if (response.headers.get("content-type")?.includes("text/csv")) {
+      return { success: true, blob: await response.blob(), contentType: "text/csv" };
+  }
+  return { success: true, data: await response.json() };
+}
+
+
+// --- API Functions ---
+
+/**
+ * @swagger /api/graduation (POST)
+ * Create graduation list from CSV file
+ */
+export async function createGraduationList(
+  formData: FormData
+): Promise<SuccessResponse<{ id: string; message: string }> | CreateGraduationListErrorResponse> {
+  try {
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
 
     const response = await fetch(`${API_BASE_URL}/api/graduation`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       body: formData,
       cache: "no-store",
-    })
+    });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        return { error: "Authentication failed. Please log in again." }
-      } else if (response.status === 403) {
-        return { error: "You don't have permission to create graduation lists." }
-      } else if (response.status === 400) {
-        const errorData = await response.json().catch(() => ({}))
-        return {
-          error: errorData.message || "Invalid CSV data.",
-          validationResults: errorData.validationResults,
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        return { error: errorData.message || "Failed to create graduation list." }
-      }
+    const result = await handleApiResponse(response);
+    if (result.error) {
+      return { error: result.error, details: result.details };
     }
-
-    const data = await response.json()
-    return { success: true, data }
-  } catch (error) {
-    console.error("Failed to create graduation list:", error)
-    return { error: "Network error. Please check your connection and try again." }
+    return { success: true, data: result.data };
+  } catch (error: any) {
+    console.error("createGraduationList failed:", error);
+    return { error: error.message || "Network error." };
   }
 }
 
-// Get all graduation lists
-export async function getAllGraduationLists() {
+/**
+ * @swagger /api/graduation (GET)
+ * Get all graduation lists
+ */
+export async function getAllGraduationLists(): Promise<SuccessResponse<GraduationListSummary[]> | ErrorResponse> {
   try {
-    const token = await getAuthToken()
-    if (!token) {
-      return { error: "Authentication required. Please log in again." }
-    }
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
 
     const response = await fetch(`${API_BASE_URL}/api/graduation`, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       cache: "no-store",
-    })
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        return { error: "Authentication failed. Please log in again." }
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        return { error: errorData.message || "Failed to fetch graduation lists." }
-      }
-    }
-
-    const data: GraduationList[] = await response.json()
-    return { success: true, data }
-  } catch (error) {
-    console.error("Failed to fetch graduation lists:", error)
-    return { error: "Network error. Please check your connection and try again." }
+    });
+    
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error };
+    return { success: true, data: result.data };
+  } catch (error: any) {
+    console.error("getAllGraduationLists failed:", error);
+    return { error: error.message || "Network error." };
   }
 }
 
-// Get graduation list by ID
-export async function getGraduationList(id: string) {
+/**
+ * @swagger /api/graduation/{id} (GET)
+ * Get graduation list by ID
+ */
+export async function getGraduationList(id: string): Promise<SuccessResponse<GraduationListDetail> | ErrorResponse> {
   try {
-    const token = await getAuthToken()
-    if (!token) {
-      return { error: "Authentication required. Please log in again." }
-    }
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
 
     const response = await fetch(`${API_BASE_URL}/api/graduation/${id}`, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       cache: "no-store",
-    })
+    });
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        return { error: "Graduation list not found." }
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        return { error: errorData.message || "Failed to fetch graduation list." }
-      }
-    }
-
-    const data: GraduationListDetail = await response.json()
-    return { success: true, data }
-  } catch (error) {
-    console.error("Failed to fetch graduation list:", error)
-    return { error: "Network error. Please check your connection and try again." }
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error };
+    return { success: true, data: result.data };
+  } catch (error: any) {
+    console.error("getGraduationList failed:", error);
+    return { error: error.message || "Network error." };
   }
 }
 
-// Export graduation list to CSV
-export async function exportGraduationList(graduationListId: string, includeHeaders = true) {
+/**
+ * @swagger /api/graduation/export (POST)
+ * Export graduation list to CSV file
+ */
+export async function exportGraduationList(
+  graduationListId: string,
+  includeHeaders = true
+): Promise<{ success: true; blob: Blob; contentType: string; filename: string } | ErrorResponse> {
   try {
-    const token = await getAuthToken()
-    if (!token) {
-      return { error: "Authentication required. Please log in again." }
-    }
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
 
     const response = await fetch(`${API_BASE_URL}/api/graduation/export`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ graduationListId, includeHeaders }),
       cache: "no-store",
-    })
+    });
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        return { error: "Graduation list not found." }
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        return { error: errorData.message || "Failed to export graduation list." }
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error };
+    
+    if (result.success && result.blob) {
+      // Extract filename from Content-Disposition header if available
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = `graduation_list_${graduationListId}.csv`;
+      if (disposition && disposition.indexOf('attachment') !== -1) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
       }
+      return { success: true, blob: result.blob, contentType: result.contentType!, filename };
     }
-
-    // Handle CSV download
-    const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `graduation_list_${graduationListId}.csv`
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
-
-    return { success: true, message: "Graduation list exported successfully." }
-  } catch (error) {
-    console.error("Failed to export graduation list:", error)
-    return { error: "Network error. Please check your connection and try again." }
+    return { error: "Failed to get CSV blob from response."};
+  } catch (error: any) {
+    console.error("exportGraduationList failed:", error);
+    return { error: error.message || "Network error." };
   }
 }
 
-// Update graduation entry
-export async function updateGraduationEntry(id: string, entryData: UpdateGraduationEntry) {
+/**
+ * @swagger /api/graduation/entries/{id} (PUT)
+ * Update graduation entry
+ */
+export async function updateGraduationEntry(
+  id: string,
+  entryData: UpdateGraduationEntryPayload
+): Promise<SuccessResponse<{ message: string; entry: GraduationEntry }> | ErrorResponse> {
   try {
-    const token = await getAuthToken()
-    if (!token) {
-      return { error: "Authentication required. Please log in again." }
-    }
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
 
     const response = await fetch(`${API_BASE_URL}/api/graduation/entries/${id}`, {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(entryData),
       cache: "no-store",
-    })
+    });
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        return { error: "Graduation entry not found." }
-      } else if (response.status === 400) {
-        const errorData = await response.json().catch(() => ({}))
-        return { error: errorData.message || "Validation error." }
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        return { error: errorData.message || "Failed to update graduation entry." }
-      }
-    }
-
-    const data = await response.json()
-    return { success: true, data }
-  } catch (error) {
-    console.error("Failed to update graduation entry:", error)
-    return { error: "Network error. Please check your connection and try again." }
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error, details: result.details };
+    return { success: true, data: result.data };
+  } catch (error: any) {
+    console.error("updateGraduationEntry failed:", error);
+    return { error: error.message || "Network error." };
   }
 }
 
-// Delete graduation entry
-export async function deleteGraduationEntry(id: string) {
+/**
+ * @swagger /api/graduation/entries/{id} (DELETE)
+ * Delete graduation entry
+ */
+export async function deleteGraduationEntry(id: string): Promise<SuccessMessageResponse | ErrorResponse> {
   try {
-    const token = await getAuthToken()
-    if (!token) {
-      return { error: "Authentication required. Please log in again." }
-    }
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
 
     const response = await fetch(`${API_BASE_URL}/api/graduation/entries/${id}`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}` }, // Content-Type not usually needed for DELETE with no body
       cache: "no-store",
-    })
+    });
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        return { error: "Graduation entry not found." }
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        return { error: errorData.message || "Failed to delete graduation entry." }
-      }
-    }
-
-    const data = await response.json()
-    return { success: true, message: data.message }
-  } catch (error) {
-    console.error("Failed to delete graduation entry:", error)
-    return { error: "Network error. Please check your connection and try again." }
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error };
+    // Ensure result.data exists and has a message property
+    const message = result.data?.message || "Entry deleted successfully.";
+    return { success: true, message };
+  } catch (error: any) {
+    console.error("deleteGraduationEntry failed:", error);
+    return { error: error.message || "Network error." };
   }
 }
 
-// Approve graduation list
-export async function approveGraduationList(graduationListId: string) {
+/**
+ * @swagger /api/graduation/entries/validate (POST)
+ * Validate graduation entry fields
+ */
+export async function validateGraduationEntryFields(
+  payload: ValidateGraduationEntryFieldsRequest
+): Promise<SuccessResponse<ValidateGraduationEntryFieldsResponse> | ErrorResponse> {
   try {
-    const token = await getAuthToken()
-    if (!token) {
-      return { error: "Authentication required. Please log in again." }
-    }
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
+
+    const response = await fetch(`${API_BASE_URL}/api/graduation/entries/validate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error, details: result.details };
+    return { success: true, data: result.data };
+  } catch (error: any) {
+    console.error("validateGraduationEntryFields failed:", error);
+    return { error: error.message || "Network error." };
+  }
+}
+
+/**
+ * @swagger /api/graduation/approve/{graduationListId} (POST)
+ * Approve graduation list
+ */
+export async function approveGraduationList(
+  graduationListId: string
+): Promise<SuccessMessageResponse | ApproveGraduationListErrorResponse> {
+  try {
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
 
     const response = await fetch(`${API_BASE_URL}/api/graduation/approve/${graduationListId}`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}` }, // Content-Type not strictly needed if no body
       cache: "no-store",
-    })
+    });
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        return { error: "Graduation list not found." }
-      } else if (response.status === 400) {
-        const errorData = await response.json().catch(() => ({}))
-        return {
-          error: errorData.message || "Cannot approve list due to validation errors.",
-          invalidEntries: errorData.invalidEntries,
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        return { error: errorData.message || "Failed to approve graduation list." }
-      }
+    const result = await handleApiResponse(response);
+    if (result.error) {
+      return { error: result.error, details: result.details };
     }
-
-    const data = await response.json()
-    return { success: true, message: data.message }
-  } catch (error) {
-    console.error("Failed to approve graduation list:", error)
-    return { error: "Network error. Please check your connection and try again." }
+    // Ensure result.data exists and has a message property
+    const message = result.data?.message || "List approved successfully.";
+    return { success: true, message };
+  } catch (error: any) {
+    console.error("approveGraduationList failed:", error);
+    return { error: error.message || "Network error." };
   }
 }
 
-// Get graduation rankings
-export async function getGraduationRankings(id: string) {
+/**
+ * @swagger /api/graduation/{id}/cover-letter (GET)
+ * Get cover letter data for graduation entry auto-fill
+ */
+export async function getCoverLetterData(entryId: string): Promise<SuccessResponse<CoverLetterData> | ErrorResponse> {
   try {
-    const token = await getAuthToken()
-    if (!token) {
-      return { error: "Authentication required. Please log in again." }
-    }
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
 
-    const response = await fetch(`${API_BASE_URL}/api/graduation/graduation-rankings/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/graduation/${entryId}/cover-letter`, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       cache: "no-store",
-    })
+    });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      return { error: errorData.message || "Failed to fetch graduation rankings." }
-    }
-
-    const data = await response.json()
-    return { success: true, data }
-  } catch (error) {
-    console.error("Failed to fetch graduation rankings:", error)
-    return { error: "Network error. Please check your connection and try again." }
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error };
+    return { success: true, data: result.data };
+  } catch (error: any) {
+    console.error("getCoverLetterData failed:", error);
+    return { error: error.message || "Network error." };
   }
 }
 
-// Generate cover letter
-export async function generateCoverLetter(entryId: string, notes: string) {
+/**
+ * @swagger /api/graduation/{id}/cover-letter (POST)
+ * Generate cover letter and complete graduation process
+ */
+export async function generateCoverLetter(
+  entryId: string,
+  payload: GenerateCoverLetterRequest
+): Promise<SuccessResponse<CoverLetterResponseData> | ErrorResponse> {
   try {
-    const token = await getAuthToken()
-    if (!token) {
-      return { error: "Authentication required. Please log in again." }
-    }
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
 
     const response = await fetch(`${API_BASE_URL}/api/graduation/${entryId}/cover-letter`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ notes }),
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
       cache: "no-store",
-    })
+    });
+    
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error, details: result.details };
+    return { success: true, data: result.data };
+  } catch (error: any) {
+    console.error("generateCoverLetter failed:", error);
+    return { error: error.message || "Network error." };
+  }
+}
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        return { error: "Graduation entry not found." }
-      } else if (response.status === 400) {
-        const errorData = await response.json().catch(() => ({}))
-        return { error: errorData.message || "Entry must be APPROVED to generate cover letter." }
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        return { error: errorData.message || "Failed to generate cover letter." }
-      }
-    }
+/**
+ * @swagger /api/graduation/graduation-rankings/{id} (GET)
+ * Get graduation rankings list
+ */
+export async function getGraduationRankings(graduationListId: string): Promise<SuccessResponse<GraduationRankingItem[]> | ErrorResponse> {
+  // Swagger path is /api/graduation/graduation-rankings/{id} where id is Graduation list ID
+  try {
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
 
-    const data = await response.json()
-    return { success: true, data }
-  } catch (error) {
-    console.error("Failed to generate cover letter:", error)
-    return { error: "Network error. Please check your connection and try again." }
+    const response = await fetch(`${API_BASE_URL}/api/graduation/graduation-rankings/${graduationListId}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error };
+    return { success: true, data: result.data };
+  } catch (error: any) {
+    console.error("getGraduationRankings failed:", error);
+    return { error: error.message || "Network error." };
+  }
+}
+
+/**
+ * @swagger /api/graduation/approved-applications (GET)
+ * Get all applications approved by advisor
+ */
+export async function getApprovedApplications(): Promise<SuccessResponse<ApprovedApplicationsResponseData> | ErrorResponse> {
+  try {
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
+
+    const response = await fetch(`${API_BASE_URL}/api/graduation/approved-applications`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error };
+    return { success: true, data: result.data };
+  } catch (error: any) {
+    console.error("getApprovedApplications failed:", error);
+    return { error: error.message || "Network error." };
+  }
+}
+
+/**
+ * @swagger /api/graduation/map-application-to-graduation-entry (POST)
+ * Map single approved application to graduation entry
+ */
+export async function mapApplicationToGraduationEntry(
+  payload: MapApplicationToEntryRequest
+): Promise<SuccessResponse<MapApplicationToEntryResponseData> | ErrorResponse> {
+  try {
+    const token = await getAuthToken();
+    if (!token) return { error: "Authentication required." };
+
+    const response = await fetch(`${API_BASE_URL}/api/graduation/map-application-to-graduation-entry`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+
+    const result = await handleApiResponse(response);
+    if (result.error) return { error: result.error, details: result.details };
+    return { success: true, data: result.data };
+  } catch (error: any) {
+    console.error("mapApplicationToGraduationEntry failed:", error);
+    return { error: error.message || "Network error." };
   }
 }

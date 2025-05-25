@@ -2,13 +2,12 @@ import { redirect } from "next/navigation";
 import { checkAuth, getSession } from "@/app/actions/auth";
 import {
   getAllGraduationLists,
-  type GraduationList,
-  type GraduationStatus,
+  type GraduationListSummary,
 } from "@/app/actions/depsec";
 import DepartmentSecretaryClientLayout from "./DepartmentSecretaryClientLayout";
 
 // Mock Data for testing
-const MOCK_LISTS: GraduationList[] = [
+const MOCK_LISTS: GraduationListSummary[] = [
   {
     id: "list-1-spring-2024",
     name: "Spring 2024 Graduates",
@@ -46,22 +45,16 @@ export default async function DepartmentSecretaryPage() {
   const session = await getSession();
   const userName = session?.name || "Department Secretary";
 
-  // USE MOCK DATA FOR TESTING - comment out or modify for production
-  const USE_MOCK_DATA = true; // Set to false to use real API
-
-  let graduationLists: GraduationList[] = [];
+  // Always fetch real data
+  let graduationLists: GraduationListSummary[] = [];
   let error: string | null = null;
 
-  if (USE_MOCK_DATA) {
-    graduationLists = MOCK_LISTS;
-    // Simulate that getGraduationList in the client component will also use mock details for these lists
-    // This part is tricky because getGraduationList is called on client interaction.
-    // For a complete mock, getGraduationList server action itself would need to return mock details based on listId.
-    // Or, DepartmentSecretaryClientLayout could be adjusted to have a mock for its internal fetch.
+  const listsResult = await getAllGraduationLists();
+
+  if (listsResult.success) {
+    graduationLists = listsResult.data;
   } else {
-    const listsResult = await getAllGraduationLists();
-    graduationLists = listsResult.success ? listsResult.data : [];
-    error = listsResult.error || null;
+    error = listsResult.error || "Failed to fetch graduation lists.";
   }
 
   return (
