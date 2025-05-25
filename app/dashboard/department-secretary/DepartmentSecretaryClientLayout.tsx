@@ -42,10 +42,10 @@ import {
   getGraduationRankings,
   getGraduationList,
   generateCoverLetter,
-  type GraduationList,
+  type GraduationListSummary,
   type GraduationListDetail,
   type GraduationEntry,
-  type GraduationStatus as DepSecGraduationStatus,
+  type GraduationEntryStatus,
 } from "@/app/actions/depsec";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -61,7 +61,7 @@ import {
 
 interface DepartmentSecretaryClientLayoutProps {
   userName: string;
-  graduationLists: GraduationList[];
+  graduationLists: GraduationListSummary[];
   error?: string | null;
 }
 
@@ -99,7 +99,6 @@ export default function DepartmentSecretaryClientLayout({
       if (result.success) {
         alert("Graduation list created successfully!");
         setShowUploadForm(false);
-        // Refresh the page to get updated lists
         window.location.reload();
       } else {
         setActionError(result.error || "Failed to create graduation list");
@@ -115,7 +114,14 @@ export default function DepartmentSecretaryClientLayout({
     try {
       const result = await exportGraduationList(listId);
       if (result.success) {
-        alert(result.message);
+        const url = window.URL.createObjectURL(result.blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        alert(`File ${result.filename} download initiated.`);
       } else {
         alert(result.error);
       }
@@ -137,7 +143,6 @@ export default function DepartmentSecretaryClientLayout({
       const result = await approveGraduationList(listId);
       if (result.success) {
         alert(result.message);
-        // Refresh to get updated status
         window.location.reload();
       } else {
         setActionError(result.error || "Failed to approve list");
@@ -151,7 +156,6 @@ export default function DepartmentSecretaryClientLayout({
     try {
       const result = await getGraduationRankings(listId);
       if (result.success) {
-        // For now, just show an alert. In a real app, this would open a modal or navigate to a rankings page
         alert(
           `Rankings loaded for list. Total students: ${result.data.length}`
         );
@@ -175,7 +179,7 @@ export default function DepartmentSecretaryClientLayout({
         const result = await getGraduationList(listId);
         if (result.success && result.data) {
           setSelectedListDetail(result.data);
-        } else {
+        } else if (!result.success) {
           setSelectedListDetail(null);
           setActionError(result.error || "Failed to load list details.");
         }
@@ -200,10 +204,9 @@ export default function DepartmentSecretaryClientLayout({
     setIsGeneratingCoverLetter(true);
     setActionError(null);
     try {
-      const result = await generateCoverLetter(
-        selectedEntryForCoverLetter.id,
-        coverLetterNotes
-      );
+      const result = await generateCoverLetter(selectedEntryForCoverLetter.id, {
+        notes: coverLetterNotes,
+      });
       if (result.success) {
         alert(
           result.data.message ||
@@ -227,7 +230,7 @@ export default function DepartmentSecretaryClientLayout({
     }
   };
 
-  const getStatusBadge = (status: DepSecGraduationStatus) => {
+  const getStatusBadge = (status: GraduationEntryStatus) => {
     const statusConfig = {
       NEW: { color: "bg-blue-100 text-blue-800", text: "New" },
       UNDER_REVIEW: {
@@ -256,16 +259,6 @@ export default function DepartmentSecretaryClientLayout({
     <div className="flex min-h-screen flex-col">
       <header className="bg-[#990000] text-white py-4 px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/10"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </Link>
           <div className="flex items-center gap-2">
             <Image
               src="/images/iyte-logo.png"

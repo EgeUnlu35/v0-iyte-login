@@ -1,29 +1,55 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import Link from "next/link"
-import { ArrowLeft, AlertTriangle, Eye, ThumbsUp, ThumbsDown, RotateCcw, FileCheck } from "lucide-react"
-import { logout } from "@/app/actions/auth"
-import { reviewApplication, type GraduationApplication, type ApplicationStatus } from "@/app/actions/advisor"
+import Image from "next/image";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  AlertTriangle,
+  Eye,
+  ThumbsUp,
+  ThumbsDown,
+  RotateCcw,
+  FileCheck,
+} from "lucide-react";
+import { logout } from "@/app/actions/auth";
+import {
+  reviewApplication,
+  type GraduationApplication,
+  type ApplicationStatus,
+} from "@/app/actions/advisor";
 
 interface AdvisorClientLayoutProps {
-  userName: string
-  pendingApplications: GraduationApplication[]
-  error?: string | null
+  userName: string;
+  pendingApplications: GraduationApplication[];
+  error?: string | null;
 }
 
-export default function AdvisorClientLayout({ userName, pendingApplications, error }: AdvisorClientLayoutProps) {
-  const [isReviewing, setIsReviewing] = useState<string | null>(null)
-  const [reviewError, setReviewError] = useState<string | null>(null)
-  const [applications, setApplications] = useState(pendingApplications)
+export default function AdvisorClientLayout({
+  userName,
+  pendingApplications,
+  error,
+}: AdvisorClientLayoutProps) {
+  const [isReviewing, setIsReviewing] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [applications, setApplications] = useState(pendingApplications);
 
-  const handleReview = async (applicationId: string, status: ApplicationStatus, feedback?: string) => {
-    setIsReviewing(applicationId)
-    setReviewError(null)
+  const handleReview = async (
+    applicationId: string,
+    status: ApplicationStatus,
+    feedback?: string
+  ) => {
+    setIsReviewing(applicationId);
+    setReviewError(null);
 
     try {
       const result = await reviewApplication({
@@ -31,51 +57,47 @@ export default function AdvisorClientLayout({ userName, pendingApplications, err
         advisorId: "current-advisor-id", // This should come from session
         status,
         feedback,
-      })
+      });
 
       if (result.success) {
         // Remove the reviewed application from the list
-        setApplications((prev) => prev.filter((app) => app.id !== applicationId))
-        alert(result.message)
+        setApplications((prev) =>
+          prev.filter((app) => app.id !== applicationId)
+        );
+        alert(result.message);
       } else {
-        setReviewError(result.error || "Failed to review application")
+        setReviewError(result.error || "Failed to review application");
       }
     } catch (error) {
-      setReviewError("An unexpected error occurred")
+      setReviewError("An unexpected error occurred");
     } finally {
-      setIsReviewing(null)
+      setIsReviewing(null);
     }
-  }
+  };
 
   const handleApprove = (applicationId: string) => {
-    const feedback = prompt("Add approval feedback (optional):")
-    handleReview(applicationId, "APPROVED", feedback || undefined)
-  }
+    const feedback = prompt("Add approval feedback (optional):");
+    handleReview(applicationId, "APPROVED", feedback || undefined);
+  };
 
   const handleReject = (applicationId: string) => {
-    const feedback = prompt("Please provide rejection reason:")
+    const feedback = prompt("Please provide rejection reason:");
     if (feedback) {
-      handleReview(applicationId, "REJECTED", feedback)
+      handleReview(applicationId, "REJECTED", feedback);
     }
-  }
+  };
 
   const handleReturnForRevision = (applicationId: string) => {
-    const feedback = prompt("Please provide revision instructions:")
+    const feedback = prompt("Please provide revision instructions:");
     if (feedback) {
-      handleReview(applicationId, "RETURNED_FOR_REVISION", feedback)
+      handleReview(applicationId, "RETURNED_FOR_REVISION", feedback);
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
       <header className="bg-[#990000] text-white py-4 px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard">
-            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </Link>
           <div className="flex items-center gap-2">
             <Image
               src="/images/iyte-logo.png"
@@ -90,7 +112,11 @@ export default function AdvisorClientLayout({ userName, pendingApplications, err
         <div className="flex items-center gap-4">
           <span className="text-sm">Welcome, {userName}</span>
           <form action={logout}>
-            <Button variant="outline" className="text-white bg-[#990000] border-white hover:bg-white/10" type="submit">
+            <Button
+              variant="outline"
+              className="text-white bg-[#990000] border-white hover:bg-white/10"
+              type="submit"
+            >
               Logout
             </Button>
           </form>
@@ -99,8 +125,12 @@ export default function AdvisorClientLayout({ userName, pendingApplications, err
 
       <main className="flex-1 container mx-auto px-6 py-8 max-w-6xl">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Graduation Application Review</h2>
-          <p className="text-gray-600">Review and approve student graduation applications</p>
+          <h2 className="text-3xl font-bold mb-2">
+            Graduation Application Review
+          </h2>
+          <p className="text-gray-600">
+            Review and approve student graduation applications
+          </p>
         </div>
 
         {/* Error Alert */}
@@ -126,7 +156,9 @@ export default function AdvisorClientLayout({ userName, pendingApplications, err
                 <p className="text-sm text-gray-500">
                   {applications.length === 0
                     ? "All applications reviewed!"
-                    : `${applications.length} application${applications.length > 1 ? "s" : ""} awaiting your review`}
+                    : `${applications.length} application${
+                        applications.length > 1 ? "s" : ""
+                      } awaiting your review`}
                 </p>
               </div>
             </div>
@@ -137,16 +169,23 @@ export default function AdvisorClientLayout({ userName, pendingApplications, err
         <Card>
           <CardHeader>
             <CardTitle>Pending Graduation Applications</CardTitle>
-            <CardDescription>Review each application carefully before making your decision</CardDescription>
+            <CardDescription>
+              Review each application carefully before making your decision
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {applications.map((app) => (
-                <div key={app.id} className="border rounded-lg p-6 hover:shadow-md transition-shadow">
+                <div
+                  key={app.id}
+                  className="border rounded-lg p-6 hover:shadow-md transition-shadow"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
-                        <h3 className="text-lg font-semibold">{app.studentName}</h3>
+                        <h3 className="text-lg font-semibold">
+                          {app.studentName}
+                        </h3>
                         <span className="inline-block px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
                           {app.status}
                         </span>
@@ -158,22 +197,30 @@ export default function AdvisorClientLayout({ userName, pendingApplications, err
                           <p className="font-medium">{app.studentEmail}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Submission Date</p>
-                          <p className="font-medium">{new Date(app.submissionDate).toLocaleDateString()}</p>
+                          <p className="text-sm text-gray-600">
+                            Submission Date
+                          </p>
+                          <p className="font-medium">
+                            {new Date(app.submissionDate).toLocaleDateString()}
+                          </p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-600">Student ID</p>
                           <p className="font-medium">{app.studentId}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Application ID</p>
+                          <p className="text-sm text-gray-600">
+                            Application ID
+                          </p>
                           <p className="font-medium text-xs">{app.id}</p>
                         </div>
                       </div>
 
                       {app.feedback && (
                         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                          <p className="text-sm text-gray-600 mb-1">Previous Feedback</p>
+                          <p className="text-sm text-gray-600 mb-1">
+                            Previous Feedback
+                          </p>
                           <p className="text-sm">{app.feedback}</p>
                         </div>
                       )}
@@ -184,7 +231,9 @@ export default function AdvisorClientLayout({ userName, pendingApplications, err
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => alert(`Viewing details for ${app.studentName}`)}
+                      onClick={() =>
+                        alert(`Viewing details for ${app.studentName}`)
+                      }
                       className="flex items-center gap-2"
                     >
                       <Eye className="w-4 h-4" />
@@ -229,8 +278,12 @@ export default function AdvisorClientLayout({ userName, pendingApplications, err
               {applications.length === 0 && (
                 <div className="text-center py-12">
                   <FileCheck className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Applications</h3>
-                  <p className="text-gray-500">All graduation applications have been reviewed.</p>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No Pending Applications
+                  </h3>
+                  <p className="text-gray-500">
+                    All graduation applications have been reviewed.
+                  </p>
                 </div>
               )}
             </div>
@@ -239,8 +292,11 @@ export default function AdvisorClientLayout({ userName, pendingApplications, err
       </main>
 
       <footer className="bg-[#990000] text-white py-4 px-6 text-center">
-        <p>© {new Date().getFullYear()} IYTE Graduation Management System. All rights reserved.</p>
+        <p>
+          © {new Date().getFullYear()} IYTE Graduation Management System. All
+          rights reserved.
+        </p>
       </footer>
     </div>
-  )
+  );
 }

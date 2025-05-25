@@ -43,16 +43,6 @@ export default function StudentAffairsClientLayout({
     <div className="flex min-h-screen flex-col">
       <header className="bg-[#990000] text-white py-4 px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/10"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </Link>
           <div className="flex items-center gap-2">
             <Image
               src="/images/iyte-logo.png"

@@ -196,6 +196,7 @@ async function handleApiResponse(response: Response) {
   if (!response.ok) {
     let errorData: any = {};
     try {
+      // Try to parse JSON first, as many APIs return JSON errors
       errorData = await response.json();
     } catch (e) {
       // If response is not JSON (e.g. plain text or HTML error page)
@@ -204,7 +205,6 @@ async function handleApiResponse(response: Response) {
     }
     
     const errorMessage = errorData.message || errorData.detail || `Request failed with status ${response.status}`;
-    // Include specific details if present
     const details: any = {};
     if (errorData.validationResults) details.validationResults = errorData.validationResults;
     if (errorData.invalidEntries) details.invalidEntries = errorData.invalidEntries;
@@ -212,15 +212,44 @@ async function handleApiResponse(response: Response) {
 
     return { error: errorMessage, details: Object.keys(details).length > 0 ? details : undefined };
   }
+
+  // Handle successful responses
+  const contentType = response.headers.get("content-type");
+
   // For 204 No Content or other non-JSON success responses for specific endpoints
   if (response.status === 204 || response.headers.get("content-length") === "0") {
-      return { success: true, data: null }; // Or an appropriate success marker
+      return { success: true, data: null };
   }
+
   // For CSV download which returns blob
-  if (response.headers.get("content-type")?.includes("text/csv")) {
+  if (contentType?.includes("text/csv")) {
       return { success: true, blob: await response.blob(), contentType: "text/csv" };
   }
-  return { success: true, data: await response.json() };
+  
+  // For other successful responses, attempt to parse as JSON
+  // but handle cases where it might not be JSON even with a 2xx status.
+  if (contentType?.includes("application/json")) {
+    try {
+      return { success: true, data: await response.json() };
+    } catch (e: any) {
+      // This can happen if Content-Type is application/json but body is invalid JSON
+      console.error("handleApiResponse: Failed to parse supposedly JSON response:", e);
+      return { error: `Failed to parse JSON response: ${e.message}` };
+    }
+  }
+
+  // If content-type is not JSON, or parsing failed, but status was ok,
+  // return the raw text for inspection or treat as an unexpected response type.
+  // This case should be rare for well-behaved APIs that correctly set Content-Type.
+  try {
+    const textData = await response.text();
+    console.warn(`handleApiResponse: Received non-JSON response with status ${response.status} and Content-Type: ${contentType}. Body: ${textData.substring(0,200)}`);
+    // Depending on requirements, you might return the text data or an error.
+    // For now, let's assume if it was a 2xx and not explicitly handled (CSV, JSON, No Content), it might be an issue.
+    return { error: `Unexpected response type. Status: ${response.status}, Content-Type: ${contentType}` };
+  } catch (e:any) {
+    return { error: `Failed to read response text: ${e.message}` };
+  }
 }
 
 
