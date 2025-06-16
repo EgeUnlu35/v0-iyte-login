@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { checkAuth, getSession } from "@/app/actions/auth"
-import { getPendingApplications } from "@/app/actions/advisor"
+import { getAllApplications } from "@/app/actions/advisor"
 import AdvisorClientLayout from "./AdvisorClientLayout"
 
 export default async function AdvisorPage() {
@@ -12,10 +12,10 @@ export default async function AdvisorPage() {
   const session = await getSession()
   const userName = session?.name || "Advisor"
 
-  // Fetch pending applications
-  const pendingResult = await getPendingApplications()
-  const pendingApplications = pendingResult.success ? pendingResult.data.applications : []
-  const error = pendingResult.error || null
+  // Fetch all applications instead of just pending
+  const applicationsResult = await getAllApplications()
+  const allApplications = applicationsResult.success ? applicationsResult.data.applications : []
+  const error = applicationsResult.error || null
 
-  return <AdvisorClientLayout userName={userName} pendingApplications={pendingApplications} error={error} />
+  return <AdvisorClientLayout userName={userName} allApplications={allApplications} error={error} />
 }
