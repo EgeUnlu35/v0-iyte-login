@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { checkAuth, getSession } from "@/app/actions/auth"
 import { getAllGraduationLists, type GraduationListSummary } from "@/app/actions/depsec"
+import { getAllApplications } from "@/app/actions/advisor"
 import DepartmentSecretaryClientLayout from "./DepartmentSecretaryClientLayout"
 
 export default async function DepartmentSecretaryPage() {
@@ -12,7 +13,7 @@ export default async function DepartmentSecretaryPage() {
   const session = await getSession()
   const userName = session?.name || "Department Secretary"
 
-  // Fetch real data
+  // Fetch graduation lists
   let graduationLists: GraduationListSummary[] = []
   let error: string | null = null
 
@@ -24,5 +25,17 @@ export default async function DepartmentSecretaryPage() {
     error = listsResult.error || "Failed to fetch graduation lists."
   }
 
-  return <DepartmentSecretaryClientLayout userName={userName} graduationLists={graduationLists} error={error} />
+  // Fetch all applications (same as Advisor)
+  const applicationsResult = await getAllApplications()
+  const allApplications = applicationsResult.success ? applicationsResult.data.applications : []
+  const applicationsError = applicationsResult.error || null
+
+  return (
+    <DepartmentSecretaryClientLayout
+      userName={userName}
+      graduationLists={graduationLists}
+      allApplications={allApplications}
+      error={error || applicationsError}
+    />
+  )
 }

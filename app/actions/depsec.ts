@@ -31,6 +31,39 @@ export interface ErrorResponse {
 // --- Type Definitions ---
 export type GraduationEntryStatus = "NEW" | "UNDER_REVIEW" | "PENDING_ISSUES" | "APPROVED" | "REJECTED" | "COMPLETED"
 
+// Application types (from advisor.ts)
+export interface GraduationApplication {
+  id: string
+  studentId: string
+  studentName: string
+  studentLastName: string
+  studentEmail?: string
+  gpaOverall: number
+  totalCredits: number
+  departmentName: string
+  status: string
+  submissionDate: string
+  reviewDate?: string
+  feedback?: string
+  missingCourses0?: string
+  missingCourses1?: string
+  missingCourses2?: string
+}
+
+export type ApplicationStatus = "APPROVED" | "REJECTED" | "RETURNED_FOR_REVISION"
+
+export interface ReviewApplicationRequest {
+  applicationId: string
+  status: ApplicationStatus
+  feedback?: string
+}
+
+export interface UpdateStudentInfoRequest {
+  gpaOverall?: number
+  totalCredits?: number
+  reason: string
+}
+
 export interface GraduationListSummary {
   id: string
   name: string
@@ -163,6 +196,18 @@ export interface CurriculumUploadResponseData {
   curriculumCourses: string[]
 }
 
+// Application Cover Letter Request (for applications)
+export interface ApplicationCoverLetterRequest {
+  applicationId: string
+  notes?: string
+}
+
+export interface ApplicationCoverLetterResponseData {
+  message: string
+  applicationId: string
+  coverLetterUrl?: string
+}
+
 // YENİ: Mezuniyet onay mesajı için interface'ler
 export interface GraduationApprovalMessageRequest {
   entryIds: string[]
@@ -277,7 +322,176 @@ function validateAndLogId(functionName: string, id: any): { isValid: boolean; er
   return { isValid: true }
 }
 
-// --- API Functions ---
+// --- APPLICATION API FUNCTIONS (from advisor.ts structure) ---
+
+export async function getAllApplications(): Promise<
+  SuccessResponse<{ applications: GraduationApplication[]; total: number }> | ErrorResponse
+> {
+  try {
+    const token = await getAuthToken()
+    if (!token) return { error: "Authentication required." }
+
+    // Department Secretary için tüm departman applicationlarını getir
+    const response = await fetch(`${API_BASE_URL}/api/depsec/graduation-applications/all`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      cache: "no-store",
+    })
+
+    const result = await handleApiResponse(response)
+    if (result.error) return { error: result.error }
+
+    return {
+      success: true,
+      data: result.data,
+    }
+  } catch (error: any) {
+    console.error("getAllApplications failed:", error)
+    return { error: error.message || "Network error." }
+  }
+}
+
+export async function reviewApplication(
+  reviewData: ReviewApplicationRequest,
+): Promise<SuccessResponse<{ message: string }> | ErrorResponse> {
+  try {
+    const token = await getAuthToken()
+    if (!token) return { error: "Authentication required." }
+
+    const response = await fetch(`${API_BASE_URL}/api/depsec/graduation-applications/review`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(reviewData),
+      cache: "no-store",
+    })
+
+    const result = await handleApiResponse(response)
+    if (result.error) return { error: result.error }
+
+    return {
+      success: true,
+      data: result.data,
+    }
+  } catch (error: any) {
+    console.error("reviewApplication failed:", error)
+    return { error: error.message || "Network error." }
+  }
+}
+
+export async function updateStudentInfo(
+  applicationId: string,
+  updateData: UpdateStudentInfoRequest,
+): Promise<SuccessResponse<{ message: string }> | ErrorResponse> {
+  try {
+    const token = await getAuthToken()
+    if (!token) return { error: "Authentication required." }
+
+    const response = await fetch(`${API_BASE_URL}/api/depsec/graduation-applications/${applicationId}/update-info`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(updateData),
+      cache: "no-store",
+    })
+
+    const result = await handleApiResponse(response)
+    if (result.error) return { error: result.error }
+
+    return {
+      success: true,
+      data: result.data,
+    }
+  } catch (error: any) {
+    console.error("updateStudentInfo failed:", error)
+    return { error: error.message || "Network error." }
+  }
+}
+
+export async function getApplicationDetails(
+  applicationId: string,
+): Promise<SuccessResponse<GraduationApplication> | ErrorResponse> {
+  try {
+    const token = await getAuthToken()
+    if (!token) return { error: "Authentication required." }
+
+    const validation = validateAndLogId("getApplicationDetails", applicationId)
+    if (!validation.isValid) {
+      return { error: validation.error! }
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/depsec/graduation-applications/${applicationId}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      cache: "no-store",
+    })
+
+    const result = await handleApiResponse(response)
+    if (result.error) return { error: result.error }
+    return { success: true, data: result.data }
+  } catch (error: any) {
+    console.error("getApplicationDetails failed:", error)
+    return { error: error.message || "Network error." }
+  }
+}
+
+export async function getApplicationsByStatus(
+  status: ApplicationStatus,
+): Promise<SuccessResponse<{ applications: GraduationApplication[]; total: number }> | ErrorResponse> {
+  try {
+    const token = await getAuthToken()
+    if (!token) return { error: "Authentication required." }
+
+    const response = await fetch(`${API_BASE_URL}/api/depsec/graduation-applications/status/${status}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      cache: "no-store",
+    })
+
+    const result = await handleApiResponse(response)
+    if (result.error) return { error: result.error }
+
+    return {
+      success: true,
+      data: result.data,
+    }
+  } catch (error: any) {
+    console.error("getApplicationsByStatus failed:", error)
+    return { error: error.message || "Network error." }
+  }
+}
+
+// NEW: Generate Cover Letter for Application (not graduation entry)
+export async function generateApplicationCoverLetter(
+  applicationId: string,
+  payload: ApplicationCoverLetterRequest,
+): Promise<SuccessResponse<ApplicationCoverLetterResponseData> | ErrorResponse> {
+  try {
+    const token = await getAuthToken()
+    if (!token) return { error: "Authentication required." }
+
+    const validation = validateAndLogId("generateApplicationCoverLetter", applicationId)
+    if (!validation.isValid) {
+      return { error: validation.error! }
+    }
+
+    console.log("Generating cover letter for application:", applicationId, "with payload:", payload)
+
+    const response = await fetch(`${API_BASE_URL}/api/depsec/graduation-applications/${applicationId}/cover-letter`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    })
+
+    const result = await handleApiResponse(response)
+    if (result.error) return { error: result.error, details: result.details }
+    return { success: true, data: result.data }
+  } catch (error: any) {
+    console.error("generateApplicationCoverLetter failed:", error)
+    return { error: error.message || "Network error." }
+  }
+}
+
+// --- EXISTING GRADUATION LIST API FUNCTIONS ---
 
 export async function uploadCurriculum(
   formData: FormData,
