@@ -156,7 +156,7 @@ export default function DepartmentChairClientLayout({
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Image
-              src="/placeholder.svg?height=40&width=40"
+              src="/images/iyte-logo.png"
               alt="IYTE Logo"
               width={40}
               height={40}
@@ -301,29 +301,6 @@ export default function DepartmentChairClientLayout({
                         <p>
                           Cover letter generated: {formatDate(letter.createdAt)}
                         </p>
-                      </div>
-
-                      {/* Debug information */}
-                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                        <p>
-                          <strong>Debug Info:</strong>
-                        </p>
-                        <p>
-                          Stage: "{letter.stage}" (length:{" "}
-                          {letter.stage?.length || 0})
-                        </p>
-                        <p>
-                          Department Chair Signed:{" "}
-                          {letter.departmentChairSigned ? "Yes" : "No"}
-                        </p>
-                        <p>
-                          Should show button:{" "}
-                          {letter.stage === "PENDING_DEPARTMENT_CHAIR" &&
-                          !letter.departmentChairSigned
-                            ? "Yes"
-                            : "No"}
-                        </p>
-                        <p>Entry ID: {letter.entryId}</p>
                       </div>
                     </div>
                   </div>

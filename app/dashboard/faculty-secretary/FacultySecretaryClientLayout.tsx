@@ -157,7 +157,7 @@ export default function FacultySecretaryClientLayout({
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Image
-              src="/placeholder.svg?height=40&width=40"
+              src="/images/iyte-logo.png"
               alt="IYTE Logo"
               width={40}
               height={40}
@@ -342,52 +342,6 @@ export default function FacultySecretaryClientLayout({
                             {formatDate(letter.departmentChairSignedAt)}
                           </p>
                         )}
-                      </div>
-
-                      {/* Debug information */}
-                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                        <p>
-                          <strong>Debug Info:</strong>
-                        </p>
-                        <p>
-                          Stage: "{letter.stage}" (length:{" "}
-                          {letter.stage?.length || 0})
-                        </p>
-                        <p>
-                          Department Chair Signed:{" "}
-                          {letter.departmentChairSigned ? "Yes" : "No"}
-                        </p>
-                        <p>
-                          Dept Chair Status Source:{" "}
-                          {letter.departmentChairSignedAt
-                            ? "Explicit Date"
-                            : letter.stage === "PENDING_FACULTY_SECRETARY"
-                            ? "Inferred from Stage"
-                            : "Unknown"}
-                        </p>
-                        <p>
-                          Faculty Secretary Signed:{" "}
-                          {letter.facultySecretary ? "Yes" : "No"}
-                        </p>
-                        <p>
-                          Should show button:{" "}
-                          {letter.stage === "PENDING_FACULTY_SECRETARY" &&
-                          (letter.departmentChairSigned ||
-                            letter.departmentChairSignedAt) &&
-                          !letter.facultySecretary
-                            ? "Yes"
-                            : "No"}
-                        </p>
-                        <p>Entry ID: {letter.entryId}</p>
-                        <p>Raw object keys: {Object.keys(letter).join(", ")}</p>
-                        <p>
-                          Dept Chair Signed At:{" "}
-                          {letter.departmentChairSignedAt || "null"}
-                        </p>
-                        <p>
-                          Dept Chair Signed By:{" "}
-                          {letter.departmentChairSignedBy || "null"}
-                        </p>
                       </div>
                     </div>
                   </div>

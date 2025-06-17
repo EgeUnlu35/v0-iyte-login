@@ -360,39 +360,6 @@ export default function StudentAffairsClientLayout({
                           </p>
                         )}
                       </div>
-
-                      {/* Debug information */}
-                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                        <p>
-                          <strong>Debug Info:</strong>
-                        </p>
-                        <p>
-                          Stage: "{letter.stage}" (length:{" "}
-                          {letter.stage?.length || 0})
-                        </p>
-                        <p>
-                          Department Chair Signed:{" "}
-                          {letter.departmentChairSigned ? "Yes" : "No"}
-                        </p>
-                        <p>
-                          Faculty Secretary Signed:{" "}
-                          {letter.facultySecretary ? "Yes" : "No"}
-                        </p>
-                        <p>
-                          Student Affairs Signed:{" "}
-                          {letter.studentAffairsSigned ? "Yes" : "No"}
-                        </p>
-                        <p>
-                          Should show button:{" "}
-                          {letter.stage === "PENDING_STUDENT_AFFAIRS" &&
-                          letter.departmentChairSigned &&
-                          letter.facultySecretary &&
-                          !letter.studentAffairsSigned
-                            ? "Yes"
-                            : "No"}
-                        </p>
-                        <p>Entry ID: {letter.entryId}</p>
-                      </div>
                     </div>
                   </div>
 
