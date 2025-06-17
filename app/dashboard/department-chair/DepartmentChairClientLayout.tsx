@@ -1,14 +1,33 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { CheckCircle, Users, FileSignature, AlertTriangle, Loader2, Calendar, User, BookOpen, Eye } from "lucide-react"
-import { logout } from "@/app/actions/auth"
-import { signCoverLetter, type CoverLetter } from "@/app/actions/department-chair"
+import Image from "next/image";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import {
+  CheckCircle,
+  Users,
+  FileSignature,
+  AlertTriangle,
+  Loader2,
+  Calendar,
+  User,
+  BookOpen,
+  Eye,
+} from "lucide-react";
+import { logout } from "@/app/actions/auth";
+import {
+  signCoverLetter,
+  type CoverLetter,
+} from "@/app/actions/department-chair";
 import {
   Dialog,
   DialogContent,
@@ -16,67 +35,120 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
 interface DepartmentChairClientLayoutProps {
-  userName: string
-  coverLetters: CoverLetter[]
-  error?: string | null
+  userName: string;
+  coverLetters: CoverLetter[];
+  error?: string | null;
 }
+
+// Helper function to safely format dates
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return "Not available";
+
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      console.warn("Invalid date string:", dateString);
+      return "Invalid date";
+    }
+    return date.toLocaleDateString();
+  } catch (error) {
+    console.error("Error formatting date:", dateString, error);
+    return "Invalid date";
+  }
+};
 
 export default function DepartmentChairClientLayout({
   userName,
   coverLetters: initialCoverLetters,
   error: initialError,
 }: DepartmentChairClientLayoutProps) {
-  const [coverLetters, setCoverLetters] = useState(initialCoverLetters)
-  const [isSigningCoverLetter, setIsSigningCoverLetter] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(initialError || null)
-  const [selectedCoverLetter, setSelectedCoverLetter] = useState<CoverLetter | null>(null)
-  const [showDetailsModal, setShowDetailsModal] = useState(false)
-  const [showSignModal, setShowSignModal] = useState(false)
+  const [coverLetters, setCoverLetters] = useState(initialCoverLetters);
+  const [isSigningCoverLetter, setIsSigningCoverLetter] = useState<
+    string | null
+  >(null);
+  const [actionError, setActionError] = useState<string | null>(
+    initialError || null
+  );
+  const [selectedCoverLetter, setSelectedCoverLetter] =
+    useState<CoverLetter | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showSignModal, setShowSignModal] = useState(false);
+
+  // Debug logging to understand button visibility
+  console.log("Department Chair - Cover letters loaded:", {
+    count: coverLetters.length,
+    stages: coverLetters.map((letter) => ({
+      id: letter.entryId,
+      stage: letter.stage,
+      signed: letter.departmentChairSigned,
+      student: `${letter.studentName} ${letter.studentLastName}`,
+    })),
+  });
 
   const handleSignCoverLetter = async (entryId: string) => {
-    setIsSigningCoverLetter(entryId)
-    setActionError(null)
+    setIsSigningCoverLetter(entryId);
+    setActionError(null);
 
     try {
-      const result = await signCoverLetter(entryId)
+      const result = await signCoverLetter(entryId);
       if (result.success) {
-        alert(result.data.message || "Cover letter signed successfully and forwarded to Faculty Secretary!")
+        alert(
+          result.data.message ||
+            "Cover letter signed successfully and forwarded to Faculty Secretary!"
+        );
         // Remove the signed cover letter from the list
-        setCoverLetters((prev) => prev.filter((letter) => letter.entryId !== entryId))
-        setShowSignModal(false)
-        setSelectedCoverLetter(null)
+        setCoverLetters((prev) =>
+          prev.filter((letter) => letter.entryId !== entryId)
+        );
+        setShowSignModal(false);
+        setSelectedCoverLetter(null);
       } else {
-        setActionError(result.error || "Failed to sign cover letter")
+        setActionError(result.error || "Failed to sign cover letter");
       }
     } catch (error) {
-      setActionError("An unexpected error occurred while signing the cover letter")
+      setActionError(
+        "An unexpected error occurred while signing the cover letter"
+      );
     } finally {
-      setIsSigningCoverLetter(null)
+      setIsSigningCoverLetter(null);
     }
-  }
+  };
 
   const openSignModal = (coverLetter: CoverLetter) => {
-    setSelectedCoverLetter(coverLetter)
-    setActionError(null)
-    setShowSignModal(true)
-  }
+    setSelectedCoverLetter(coverLetter);
+    setActionError(null);
+    setShowSignModal(true);
+  };
 
   const getStatusBadge = (stage: string) => {
     const stageConfig = {
-      PENDING_DEPARTMENT_CHAIR: { color: "bg-orange-100 text-orange-800", text: "Pending Your Signature" },
-      PENDING_FACULTY_SECRETARY: { color: "bg-blue-100 text-blue-800", text: "Sent to Faculty Secretary" },
-      PENDING_STUDENT_AFFAIRS: { color: "bg-purple-100 text-purple-800", text: "At Student Affairs" },
+      PENDING_DEPARTMENT_CHAIR: {
+        color: "bg-orange-100 text-orange-800",
+        text: "Pending Your Signature",
+      },
+      PENDING_FACULTY_SECRETARY: {
+        color: "bg-blue-100 text-blue-800",
+        text: "Sent to Faculty Secretary",
+      },
+      PENDING_STUDENT_AFFAIRS: {
+        color: "bg-purple-100 text-purple-800",
+        text: "At Student Affairs",
+      },
       COMPLETED: { color: "bg-green-100 text-green-800", text: "Completed" },
-    }
+      FULLY_SIGNED: {
+        color: "bg-green-100 text-green-800",
+        text: "Fully Signed",
+      },
+    };
     const config = stageConfig[stage as keyof typeof stageConfig] || {
       color: "bg-gray-100 text-gray-800",
       text: "Unknown",
-    }
-    return <Badge className={config.color}>{config.text}</Badge>
-  }
+    };
+    return <Badge className={config.color}>{config.text}</Badge>;
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -96,7 +168,11 @@ export default function DepartmentChairClientLayout({
         <div className="flex items-center gap-4">
           <span className="text-sm">Welcome, {userName}</span>
           <form action={logout}>
-            <Button variant="outline" className="text-white bg-[#990000] border-white hover:bg-white/10" type="submit">
+            <Button
+              variant="outline"
+              className="text-white bg-[#990000] border-white hover:bg-white/10"
+              type="submit"
+            >
               Logout
             </Button>
           </form>
@@ -105,8 +181,12 @@ export default function DepartmentChairClientLayout({
 
       <main className="flex-1 container mx-auto px-6 py-8 max-w-6xl">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Department Chair Dashboard</h2>
-          <p className="text-gray-600">Review and sign cover letters for graduation applications</p>
+          <h2 className="text-3xl font-bold mb-2">
+            Department Chair Dashboard
+          </h2>
+          <p className="text-gray-600">
+            Review and sign cover letters for graduation applications
+          </p>
         </div>
 
         {actionError && (
@@ -124,11 +204,15 @@ export default function DepartmentChairClientLayout({
                 <FileSignature className="w-12 h-12 text-blue-500" />
                 <div>
                   <h3 className="text-2xl font-bold">{coverLetters.length}</h3>
-                  <p className="text-gray-600">Cover Letters Pending Signature</p>
+                  <p className="text-gray-600">
+                    Cover Letters Pending Signature
+                  </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm text-gray-500">Ready for your review and signature</p>
+                <p className="text-sm text-gray-500">
+                  Ready for your review and signature
+                </p>
               </div>
             </div>
           </CardContent>
@@ -141,12 +225,17 @@ export default function DepartmentChairClientLayout({
               <FileSignature className="w-5 h-5 text-blue-500" />
               Cover Letters for Signature
             </CardTitle>
-            <CardDescription>Review and sign cover letters prepared by the Department Secretary</CardDescription>
+            <CardDescription>
+              Review and sign cover letters prepared by the Department Secretary
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {coverLetters.map((letter) => (
-                <div key={letter.entryId} className="border rounded-lg p-6 hover:shadow-md transition-shadow">
+                <div
+                  key={letter.entryId}
+                  className="border rounded-lg p-6 hover:shadow-md transition-shadow"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
@@ -174,8 +263,12 @@ export default function DepartmentChairClientLayout({
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-gray-500" />
                           <div>
-                            <p className="text-sm text-gray-600">Graduation Date</p>
-                            <p className="font-medium">{new Date(letter.graduationDate).toLocaleDateString()}</p>
+                            <p className="text-sm text-gray-600">
+                              Graduation Date
+                            </p>
+                            <p className="font-medium">
+                              {formatDate(letter.graduationDate)}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -183,11 +276,17 @@ export default function DepartmentChairClientLayout({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                           <p className="text-sm text-gray-600">GPA</p>
-                          <p className="font-medium text-lg">{letter.gpa.toFixed(2)}</p>
+                          <p className="font-medium text-lg">
+                            {letter.gpa.toFixed(2)}
+                          </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Credits Earned</p>
-                          <p className="font-medium text-lg">{letter.creditsEarned}</p>
+                          <p className="text-sm text-gray-600">
+                            Credits Earned
+                          </p>
+                          <p className="font-medium text-lg">
+                            {letter.creditsEarned}
+                          </p>
                         </div>
                       </div>
 
@@ -199,7 +298,32 @@ export default function DepartmentChairClientLayout({
                       )}
 
                       <div className="text-sm text-gray-500">
-                        <p>Cover letter generated: {new Date(letter.createdAt).toLocaleDateString()}</p>
+                        <p>
+                          Cover letter generated: {formatDate(letter.createdAt)}
+                        </p>
+                      </div>
+
+                      {/* Debug information */}
+                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                        <p>
+                          <strong>Debug Info:</strong>
+                        </p>
+                        <p>
+                          Stage: "{letter.stage}" (length:{" "}
+                          {letter.stage?.length || 0})
+                        </p>
+                        <p>
+                          Department Chair Signed:{" "}
+                          {letter.departmentChairSigned ? "Yes" : "No"}
+                        </p>
+                        <p>
+                          Should show button:{" "}
+                          {letter.stage === "PENDING_DEPARTMENT_CHAIR" &&
+                          !letter.departmentChairSigned
+                            ? "Yes"
+                            : "No"}
+                        </p>
+                        <p>Entry ID: {letter.entryId}</p>
                       </div>
                     </div>
                   </div>
@@ -209,8 +333,8 @@ export default function DepartmentChairClientLayout({
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        setSelectedCoverLetter(letter)
-                        setShowDetailsModal(true)
+                        setSelectedCoverLetter(letter);
+                        setShowDetailsModal(true);
                       }}
                       className="flex items-center gap-2"
                     >
@@ -218,21 +342,25 @@ export default function DepartmentChairClientLayout({
                       View Details
                     </Button>
 
-                    {letter.stage === "PENDING_DEPARTMENT_CHAIR" && !letter.departmentChairSigned && (
-                      <Button
-                        size="sm"
-                        className="bg-green-500 hover:bg-green-600 flex items-center gap-2"
-                        onClick={() => openSignModal(letter)}
-                        disabled={isSigningCoverLetter === letter.entryId}
-                      >
-                        {isSigningCoverLetter === letter.entryId ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4" />
-                        )}
-                        {isSigningCoverLetter === letter.entryId ? "Signing..." : "Sign & Forward"}
-                      </Button>
-                    )}
+                    {/* Show approve button for cover letters pending department chair signature */}
+                    {letter.stage === "PENDING_DEPARTMENT_CHAIR" &&
+                      !letter.departmentChairSigned && (
+                        <Button
+                          size="sm"
+                          className="bg-green-500 hover:bg-green-600 flex items-center gap-2"
+                          onClick={() => openSignModal(letter)}
+                          disabled={isSigningCoverLetter === letter.entryId}
+                        >
+                          {isSigningCoverLetter === letter.entryId ? (
+                            <Loader2 className="w-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4" />
+                          )}
+                          {isSigningCoverLetter === letter.entryId
+                            ? "Signing..."
+                            : "Sign & Forward"}
+                        </Button>
+                      )}
                   </div>
                 </div>
               ))}
@@ -240,8 +368,12 @@ export default function DepartmentChairClientLayout({
               {coverLetters.length === 0 && (
                 <div className="text-center py-12">
                   <FileSignature className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Cover Letters Pending</h3>
-                  <p className="text-gray-500">All cover letters have been signed and forwarded.</p>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No Cover Letters Pending
+                  </h3>
+                  <p className="text-gray-500">
+                    All cover letters have been signed and forwarded.
+                  </p>
                 </div>
               )}
             </div>
@@ -256,7 +388,9 @@ export default function DepartmentChairClientLayout({
               <CardContent className="p-6 text-center">
                 <Users className="w-8 h-8 mx-auto mb-3 text-indigo-500" />
                 <h3 className="font-medium mb-2">View Graduation Reports</h3>
-                <p className="text-sm text-gray-600">Access departmental graduation statistics.</p>
+                <p className="text-sm text-gray-600">
+                  Access departmental graduation statistics.
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -269,52 +403,78 @@ export default function DepartmentChairClientLayout({
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>
-                Cover Letter Details - {selectedCoverLetter.studentName} {selectedCoverLetter.studentLastName}
+                Cover Letter Details - {selectedCoverLetter.studentName}{" "}
+                {selectedCoverLetter.studentLastName}
               </DialogTitle>
-              <DialogDescription>Complete information about this cover letter</DialogDescription>
+              <DialogDescription>
+                Complete information about this cover letter
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Student ID</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Student ID
+                  </p>
                   <p className="text-sm">{selectedCoverLetter.studentId}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Department</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Department
+                  </p>
                   <p className="text-sm">{selectedCoverLetter.department}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">GPA</p>
-                  <p className="text-sm">{selectedCoverLetter.gpa.toFixed(2)}</p>
+                  <p className="text-sm">
+                    {selectedCoverLetter.gpa.toFixed(2)}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Credits Earned</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Credits Earned
+                  </p>
                   <p className="text-sm">{selectedCoverLetter.creditsEarned}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Status</p>
-                  <div className="mt-1">{getStatusBadge(selectedCoverLetter.stage)}</div>
+                  <div className="mt-1">
+                    {getStatusBadge(selectedCoverLetter.stage)}
+                  </div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Graduation Date</p>
-                  <p className="text-sm">{new Date(selectedCoverLetter.graduationDate).toLocaleDateString()}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Graduation Date
+                  </p>
+                  <p className="text-sm">
+                    {formatDate(selectedCoverLetter.graduationDate)}
+                  </p>
                 </div>
               </div>
 
               {selectedCoverLetter.notes && (
                 <div>
                   <p className="text-sm font-medium text-gray-600">Notes</p>
-                  <p className="text-sm mt-1 p-3 bg-gray-50 rounded">{selectedCoverLetter.notes}</p>
+                  <p className="text-sm mt-1 p-3 bg-gray-50 rounded">
+                    {selectedCoverLetter.notes}
+                  </p>
                 </div>
               )}
 
               <div>
-                <p className="text-sm font-medium text-gray-600">Cover Letter Generated</p>
-                <p className="text-sm">{new Date(selectedCoverLetter.createdAt).toLocaleDateString()}</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Cover Letter Generated
+                </p>
+                <p className="text-sm">
+                  {formatDate(selectedCoverLetter.createdAt)}
+                </p>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDetailsModal(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowDetailsModal(false)}
+              >
                 Close
               </Button>
             </DialogFooter>
@@ -332,14 +492,16 @@ export default function DepartmentChairClientLayout({
                 Sign Cover Letter
               </DialogTitle>
               <DialogDescription>
-                Sign the cover letter for {selectedCoverLetter.studentName} {selectedCoverLetter.studentLastName}
+                Sign the cover letter for {selectedCoverLetter.studentName}{" "}
+                {selectedCoverLetter.studentLastName}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
                 <p className="text-sm font-medium">Student</p>
                 <p className="text-sm">
-                  {selectedCoverLetter.studentName} {selectedCoverLetter.studentLastName} (
+                  {selectedCoverLetter.studentName}{" "}
+                  {selectedCoverLetter.studentLastName} (
                   {selectedCoverLetter.studentId})
                 </p>
               </div>
@@ -350,7 +512,9 @@ export default function DepartmentChairClientLayout({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium">GPA</p>
-                  <p className="text-sm">{selectedCoverLetter.gpa.toFixed(2)}</p>
+                  <p className="text-sm">
+                    {selectedCoverLetter.gpa.toFixed(2)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium">Credits</p>
@@ -360,8 +524,10 @@ export default function DepartmentChairClientLayout({
               <Alert className="bg-blue-50 border-blue-200">
                 <CheckCircle className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-800">
-                  By signing this cover letter, you confirm that the student has met all departmental requirements for
-                  graduation. The cover letter will be forwarded to the Faculty Secretary for the next step.
+                  By signing this cover letter, you confirm that the student has
+                  met all departmental requirements for graduation. The cover
+                  letter will be forwarded to the Faculty Secretary for the next
+                  step.
                 </AlertDescription>
               </Alert>
               {actionError && (
@@ -380,11 +546,16 @@ export default function DepartmentChairClientLayout({
                 Cancel
               </Button>
               <Button
-                onClick={() => selectedCoverLetter && handleSignCoverLetter(selectedCoverLetter.entryId)}
+                onClick={() =>
+                  selectedCoverLetter &&
+                  handleSignCoverLetter(selectedCoverLetter.entryId)
+                }
                 disabled={isSigningCoverLetter !== null}
                 className="bg-green-500 hover:bg-green-600 text-white"
               >
-                {isSigningCoverLetter ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {isSigningCoverLetter ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
                 Sign & Forward to Faculty Secretary
               </Button>
             </DialogFooter>
@@ -393,8 +564,11 @@ export default function DepartmentChairClientLayout({
       )}
 
       <footer className="bg-[#990000] text-white py-4 px-6 text-center">
-        <p>© {new Date().getFullYear()} IYTE Graduation Management System. All rights reserved.</p>
+        <p>
+          © {new Date().getFullYear()} IYTE Graduation Management System. All
+          rights reserved.
+        </p>
       </footer>
     </div>
-  )
+  );
 }

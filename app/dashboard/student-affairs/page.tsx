@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { checkAuth, getSession } from "@/app/actions/auth";
+import { getCoverLettersForReview } from "@/app/actions/student-affairs";
 import StudentAffairsClientLayout from "./StudentAffairsClientLayout";
 
 export default async function StudentAffairsPage() {
@@ -12,7 +13,24 @@ export default async function StudentAffairsPage() {
   // TODO: Check role from session, if not student-affairs, redirect or show error
   const userName = session?.name || "Student Affairs";
 
-  // TODO: Fetch any necessary data specific to the student affairs role
+  // Fetch cover letters for review
+  const coverLettersResult = await getCoverLettersForReview();
 
-  return <StudentAffairsClientLayout userName={userName} />;
+  let coverLetters = [];
+  let error = null;
+
+  if (coverLettersResult.success) {
+    coverLetters = coverLettersResult.data.coverLetters;
+  } else {
+    error = coverLettersResult.error;
+    console.error("Failed to fetch cover letters:", coverLettersResult.error);
+  }
+
+  return (
+    <StudentAffairsClientLayout
+      userName={userName}
+      coverLetters={coverLetters}
+      error={error}
+    />
+  );
 }

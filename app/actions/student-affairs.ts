@@ -17,9 +17,21 @@ export interface CoverLetter {
   creditsEarned: number
   notes?: string
   stage: string
+  // Department Chair signing info
   departmentChairSigned: boolean
   departmentChairSignedAt?: string
   departmentChairSignedBy?: string
+  // Faculty Secretary signing info
+  facultySecretary: boolean
+  facultySecretarySignedBy?: string
+  facultySecretarySignedAt?: string
+  // Student Affairs signing info
+  studentAffairsSigned: boolean
+  studentAffairsSignedAt?: string
+  studentAffairsSignedBy?: string
+  // Overall completion status
+  isFullySigned: boolean
+  completedAt?: string
   createdAt: string
 }
 
@@ -30,7 +42,7 @@ export interface CoverLetterListResponse {
 
 export interface SignCoverLetterResponse {
   message: string
-  coverLetter: CoverLetter
+  entry: CoverLetter
 }
 
 export interface SuccessResponse<T> {
@@ -86,12 +98,16 @@ async function handleApiResponse(response: Response) {
 
 // --- API Functions ---
 
+/**
+ * Get cover letters pending student affairs signature from faculty secretaries
+ * According to workflow: Status Required: COMPLETED, Stage Required: PENDING_STUDENT_AFFAIRS
+ */
 export async function getCoverLettersForReview(): Promise<SuccessResponse<CoverLetterListResponse> | ErrorResponse> {
   try {
     const token = await getAuthToken()
     if (!token) return { success: false, error: "Authentication required." }
 
-    const response = await fetch(`${API_BASE_URL}/api/department-chair/cover-letters`, {
+    const response = await fetch(`${API_BASE_URL}/api/student-affairs/cover-letters`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       cache: "no-store",
@@ -102,21 +118,12 @@ export async function getCoverLettersForReview(): Promise<SuccessResponse<CoverL
     
     // Validate and fix the data according to the workflow documentation
     if (result.data && result.data.coverLetters) {
+      const rawLetters = [...result.data.coverLetters]; // Store raw data for debugging
+      
       result.data.coverLetters = result.data.coverLetters.map((letter: any) => {
-        // If stage is empty/undefined, and the letter hasn't been signed by department chair,
-        // it should be in PENDING_DEPARTMENT_CHAIR stage according to the workflow
-        if (!letter.stage || letter.stage.trim() === "") {
-          if (!letter.departmentChairSigned) {
-            letter.stage = "PENDING_DEPARTMENT_CHAIR"
-            console.log(`Fixed empty stage for letter ${letter.id || letter.entryId}: set to PENDING_DEPARTMENT_CHAIR`)
-          } else {
-            // If already signed but stage is empty, it might be in the next stage
-            letter.stage = "PENDING_FACULTY_SECRETARY"
-            console.log(`Fixed empty stage for signed letter ${letter.id || letter.entryId}: set to PENDING_FACULTY_SECRETARY`)
-          }
-        }
-        
         // Ensure all required fields are present
+        const coverLetterData = letter.coverLetter || letter; // Handle nested structure
+        
         return {
           id: letter.id || letter.entryId || "unknown",
           entryId: letter.entryId || letter.id || "unknown",
@@ -128,18 +135,71 @@ export async function getCoverLettersForReview(): Promise<SuccessResponse<CoverL
           department: letter.department || "Unknown Department",
           creditsEarned: typeof letter.creditsEarned === 'number' ? letter.creditsEarned : 0,
           notes: letter.notes || "",
-          stage: letter.stage || "PENDING_DEPARTMENT_CHAIR",
-          departmentChairSigned: Boolean(letter.departmentChairSigned),
-          departmentChairSignedAt: letter.departmentChairSignedAt || null,
-          departmentChairSignedBy: letter.departmentChairSignedBy || null,
-          createdAt: letter.createdAt || new Date().toISOString(),
+          stage: coverLetterData.stage || letter.stage || "PENDING_STUDENT_AFFAIRS",
+          // Department Chair info - check both nested and flat structures
+          departmentChairSigned: Boolean(
+            coverLetterData.departmentChairSigned || 
+            letter.departmentChairSigned ||
+            coverLetterData.deptChairSigned || 
+            letter.deptChairSigned ||
+            coverLetterData.departmentChairApproved ||
+            letter.departmentChairApproved ||
+            coverLetterData.isSignedByDepartmentChair ||
+            letter.isSignedByDepartmentChair ||
+            (coverLetterData.stage === "PENDING_STUDENT_AFFAIRS" || coverLetterData.stage === "FULLY_SIGNED") ||
+            false
+          ),
+          departmentChairSignedAt: coverLetterData.departmentChairSignedAt || letter.departmentChairSignedAt || coverLetterData.deptChairSignedAt || letter.deptChairSignedAt || null,
+          departmentChairSignedBy: coverLetterData.departmentChairSignedBy || letter.departmentChairSignedBy || coverLetterData.deptChairSignedBy || letter.deptChairSignedBy || null,
+          // Faculty Secretary info - check both nested and flat structures
+          facultySecretary: Boolean(
+            coverLetterData.facultySecretary || 
+            letter.facultySecretary ||
+            coverLetterData.facultySecretarySigned ||
+            letter.facultySecretarySigned ||
+            coverLetterData.isSignedByFacultySecretary ||
+            letter.isSignedByFacultySecretary ||
+            (coverLetterData.stage === "PENDING_STUDENT_AFFAIRS" || coverLetterData.stage === "FULLY_SIGNED") ||
+            false
+          ),
+          facultySecretarySignedBy: coverLetterData.facultySecretarySignedBy || letter.facultySecretarySignedBy || null,
+          facultySecretarySignedAt: coverLetterData.facultySecretarySignedAt || letter.facultySecretarySignedAt || null,
+          // Student Affairs info - check both nested and flat structures
+          studentAffairsSigned: Boolean(
+            coverLetterData.studentAffairsSigned || 
+            letter.studentAffairsSigned ||
+            coverLetterData.isSignedByStudentAffairs ||
+            letter.isSignedByStudentAffairs ||
+            false
+          ),
+          studentAffairsSignedAt: coverLetterData.studentAffairsSignedAt || letter.studentAffairsSignedAt || null,
+          studentAffairsSignedBy: coverLetterData.studentAffairsSignedBy || letter.studentAffairsSignedBy || null,
+          // Overall status - check both nested and flat structures
+          isFullySigned: Boolean(coverLetterData.isFullySigned || letter.isFullySigned),
+          completedAt: coverLetterData.completedAt || letter.completedAt || null,
+          createdAt: coverLetterData.createdAt || letter.createdAt || new Date().toISOString(),
         }
       })
       
-      console.log("Processed cover letters:", result.data.coverLetters.map((l: CoverLetter) => ({ 
+      console.log("Student Affairs - Raw API data sample:", rawLetters[0]);
+      console.log("Student Affairs - Nested structure analysis:", rawLetters.map((raw: any) => ({
+        id: raw.id || raw.entryId,
+        hasNestedCoverLetter: !!raw.coverLetter,
+        topLevelStage: raw.stage,
+        nestedStage: raw.coverLetter?.stage,
+        topLevelFacultySigned: raw.facultySecretary,
+        nestedFacultySigned: raw.coverLetter?.facultySecretary,
+        nestedFacultySignedAt: raw.coverLetter?.facultySecretarySignedAt,
+        topLevelStudentAffairsSigned: raw.studentAffairsSigned,
+        nestedStudentAffairsSigned: raw.coverLetter?.studentAffairsSigned,
+      })));
+      console.log("Student Affairs - Processed cover letters:", result.data.coverLetters.map((l: CoverLetter) => ({ 
         id: l.id, 
         stage: l.stage, 
-        departmentChairSigned: l.departmentChairSigned 
+        departmentChairSigned: l.departmentChairSigned,
+        facultySecretary: l.facultySecretary,
+        studentAffairsSigned: l.studentAffairsSigned,
+        inferredFromStage: l.stage === "PENDING_STUDENT_AFFAIRS" || l.stage === "FULLY_SIGNED"
       })))
     }
     
@@ -150,12 +210,15 @@ export async function getCoverLettersForReview(): Promise<SuccessResponse<CoverL
   }
 }
 
+/**
+ * Get specific cover letter by ID
+ */
 export async function getCoverLetterById(entryId: string): Promise<SuccessResponse<CoverLetter> | ErrorResponse> {
   try {
     const token = await getAuthToken()
     if (!token) return { success: false, error: "Authentication required." }
 
-    const response = await fetch(`${API_BASE_URL}/api/department-chair/cover-letters/${entryId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/student-affairs/cover-letters/${entryId}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       cache: "no-store",
@@ -170,6 +233,11 @@ export async function getCoverLetterById(entryId: string): Promise<SuccessRespon
   }
 }
 
+/**
+ * Sign cover letter as student affairs (final signature)
+ * According to workflow: Action: POST /api/student-affairs/cover-letters/{id}/sign
+ * Final Stage: FULLY_SIGNED
+ */
 export async function signCoverLetter(
   entryId: string,
 ): Promise<SuccessResponse<SignCoverLetterResponse> | ErrorResponse> {
@@ -177,7 +245,7 @@ export async function signCoverLetter(
     const token = await getAuthToken()
     if (!token) return { success: false, error: "Authentication required." }
 
-    const response = await fetch(`${API_BASE_URL}/api/department-chair/cover-letters/${entryId}/sign`, {
+    const response = await fetch(`${API_BASE_URL}/api/student-affairs/cover-letters/${entryId}/sign`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       cache: "no-store",
@@ -190,4 +258,4 @@ export async function signCoverLetter(
     console.error("signCoverLetter failed:", error)
     return { success: false, error: error.message || "Network error." }
   }
-}
+} 

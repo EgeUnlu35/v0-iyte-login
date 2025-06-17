@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,34 +10,147 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import Link from "next/link";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft,
-  Users,
+  CheckCircle,
+  FileSignature,
+  AlertTriangle,
+  Loader2,
+  Calendar,
+  User,
+  BookOpen,
+  Eye,
+  UserCheck,
   Award,
-  CheckSquare,
-  HelpCircle,
-  Edit,
-  FileText,
-  Send,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
+import {
+  signCoverLetter,
+  type CoverLetter,
+} from "@/app/actions/student-affairs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface StudentAffairsClientLayoutProps {
   userName: string;
+  coverLetters: CoverLetter[];
+  error?: string | null;
 }
+
+// Helper function to safely format dates
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return "Not available";
+
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      console.warn("Invalid date string:", dateString);
+      return "Invalid date";
+    }
+    return date.toLocaleDateString();
+  } catch (error) {
+    console.error("Error formatting date:", dateString, error);
+    return "Invalid date";
+  }
+};
 
 export default function StudentAffairsClientLayout({
   userName,
+  coverLetters: initialCoverLetters,
+  error: initialError,
 }: StudentAffairsClientLayoutProps) {
-  const handleMockAction = (action: string) => alert(`Mock Action: ${action}`);
+  const [coverLetters, setCoverLetters] = useState(initialCoverLetters);
+  const [isSigningCoverLetter, setIsSigningCoverLetter] = useState<
+    string | null
+  >(null);
+  const [actionError, setActionError] = useState<string | null>(
+    initialError || null
+  );
+  const [selectedCoverLetter, setSelectedCoverLetter] =
+    useState<CoverLetter | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showSignModal, setShowSignModal] = useState(false);
 
-  // Mock data
-  const universityStats = {
-    totalGraduatesUniversity: 1200,
-    facultiesPendingDecision: 1,
-    coverLettersMissingFromFaculties: 0,
-    studentQueriesResolved: 152,
+  // Debug logging
+  console.log("Student Affairs - Cover letters loaded:", {
+    count: coverLetters.length,
+    stages: coverLetters.map((letter) => ({
+      id: letter.entryId,
+      stage: letter.stage,
+      deptChairSigned: letter.departmentChairSigned,
+      facultySigned: letter.facultySecretary,
+      studentAffairsSigned: letter.studentAffairsSigned,
+      student: `${letter.studentName} ${letter.studentLastName}`,
+    })),
+  });
+
+  const handleSignCoverLetter = async (entryId: string) => {
+    setIsSigningCoverLetter(entryId);
+    setActionError(null);
+
+    try {
+      const result = await signCoverLetter(entryId);
+      if (result.success) {
+        alert(
+          result.data.message ||
+            "Cover letter signed successfully! This student is now fully approved for graduation."
+        );
+        // Remove the signed cover letter from the list
+        setCoverLetters((prev) =>
+          prev.filter((letter) => letter.entryId !== entryId)
+        );
+        setShowSignModal(false);
+        setSelectedCoverLetter(null);
+      } else {
+        setActionError(result.error || "Failed to sign cover letter");
+      }
+    } catch (error) {
+      setActionError(
+        "An unexpected error occurred while signing the cover letter"
+      );
+    } finally {
+      setIsSigningCoverLetter(null);
+    }
+  };
+
+  const openSignModal = (coverLetter: CoverLetter) => {
+    setSelectedCoverLetter(coverLetter);
+    setActionError(null);
+    setShowSignModal(true);
+  };
+
+  const getStatusBadge = (stage: string) => {
+    const stageConfig = {
+      PENDING_DEPARTMENT_CHAIR: {
+        color: "bg-orange-100 text-orange-800",
+        text: "Pending Department Chair",
+      },
+      PENDING_FACULTY_SECRETARY: {
+        color: "bg-blue-100 text-blue-800",
+        text: "Pending Faculty Secretary",
+      },
+      PENDING_STUDENT_AFFAIRS: {
+        color: "bg-purple-100 text-purple-800",
+        text: "Pending Your Final Approval",
+      },
+      COMPLETED: { color: "bg-green-100 text-green-800", text: "Completed" },
+      FULLY_SIGNED: {
+        color: "bg-green-100 text-green-800",
+        text: "Fully Signed",
+      },
+    };
+    const config = stageConfig[stage as keyof typeof stageConfig] || {
+      color: "bg-gray-100 text-gray-800",
+      text: "Unknown",
+    };
+    return <Badge className={config.color}>{config.text}</Badge>;
   };
 
   return (
@@ -68,166 +182,550 @@ export default function StudentAffairsClientLayout({
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-6 py-8">
+      <main className="flex-1 container mx-auto px-6 py-8 max-w-6xl">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Student Affairs Dashboard</h2>
           <p className="text-gray-600">
-            Oversee university-wide graduation processes and student support.
+            Final review and approval of cover letters for graduation
           </p>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total University Graduates
-              </CardTitle>
-              <Award className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {universityStats.totalGraduatesUniversity}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Current academic year
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Faculties Pending Decision
-              </CardTitle>
-              <FileText className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {universityStats.facultiesPendingDecision}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Awaiting final lists
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Missing Faculty Cover Letters
-              </CardTitle>
-              <Send className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {universityStats.coverLettersMissingFromFaculties}
-              </div>
-              <p className="text-xs text-muted-foreground">Follow-ups needed</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Student Queries Resolved
-              </CardTitle>
-              <HelpCircle className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {universityStats.studentQueriesResolved}
-              </div>
-              <p className="text-xs text-muted-foreground">This month</p>
-            </CardContent>
-          </Card>
-        </div>
+        {actionError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{actionError}</AlertDescription>
+          </Alert>
+        )}
 
-        {/* Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Award className="w-5 h-5 text-purple-500" /> University-Level
-                Ranking
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Button
-                className="w-full"
-                onClick={() =>
-                  handleMockAction("Rank Students Among the University")
-                }
-              >
-                Rank University Students
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Summary Card */}
+        <Card className="mb-8">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Award className="w-12 h-12 text-purple-500" />
+                <div>
+                  <h3 className="text-2xl font-bold">{coverLetters.length}</h3>
+                  <p className="text-gray-600">
+                    Cover Letters Awaiting Final Approval
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">
+                  From faculty secretaries requiring final student affairs
+                  signature
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Send className="w-5 h-5 text-blue-500" /> Faculty Coordination
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                className="w-full"
-                onClick={() =>
-                  handleMockAction(
-                    "Initiate and Request Graduation Decision from Faculties"
-                  )
-                }
-              >
-                Request Faculty Decisions
-              </Button>
-              <Button
-                className="w-full"
-                variant="outline"
-                onClick={() =>
-                  handleMockAction("Check If Cover Letters Sent by Faculties")
-                }
-              >
-                Check Faculty Cover Letters
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Cover Letters for Final Signature */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-purple-500" />
+              Cover Letters for Final Approval
+            </CardTitle>
+            <CardDescription>
+              Provide final approval for students ready for graduation
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {coverLetters.map((letter) => (
+                <div
+                  key={letter.entryId}
+                  className="border rounded-lg p-6 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-lg font-semibold">
+                          {letter.studentName} {letter.studentLastName}
+                        </h3>
+                        {getStatusBadge(letter.stage)}
+                      </div>
 
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-green-500" /> Student
-                Support
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Button
-                className="w-full"
-                onClick={() => handleMockAction("Answer Students' Questions")}
-              >
-                Answer Student Questions
-              </Button>
-            </CardContent>
-          </Card>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-gray-500" />
+                          <div>
+                            <p className="text-sm text-gray-600">Student ID</p>
+                            <p className="font-medium">{letter.studentId}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="w-4 h-4 text-gray-500" />
+                          <div>
+                            <p className="text-sm text-gray-600">Department</p>
+                            <p className="font-medium">{letter.department}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-gray-500" />
+                          <div>
+                            <p className="text-sm text-gray-600">
+                              Graduation Date
+                            </p>
+                            <p className="font-medium">
+                              {formatDate(letter.graduationDate)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
 
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Edit className="w-5 h-5 text-orange-500" /> Student Records
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Button
-                className="w-full"
-                onClick={() =>
-                  handleMockAction(
-                    "Update Student Record (e.g. final graduation status)"
-                  )
-                }
-              >
-                Update Student Record
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                          <p className="text-sm text-gray-600">GPA</p>
+                          <p className="font-medium text-lg">
+                            {letter.gpa.toFixed(2)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">
+                            Credits Earned
+                          </p>
+                          <p className="font-medium text-lg">
+                            {letter.creditsEarned}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <UserCheck className="w-4 h-4 text-green-500" />
+                          <div>
+                            <p className="text-sm text-gray-600">
+                              Previous Approvals
+                            </p>
+                            <div className="text-xs space-y-1">
+                              <p className="font-medium">
+                                {letter.departmentChairSigned ? (
+                                  letter.departmentChairSignedAt ? (
+                                    <span className="text-green-600">
+                                      ✓ Dept Chair
+                                    </span>
+                                  ) : (
+                                    <span className="text-blue-600">
+                                      ✓ Dept Chair (inferred)
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-red-600">
+                                    ✗ Dept Chair
+                                  </span>
+                                )}
+                              </p>
+                              <p className="font-medium">
+                                {letter.facultySecretary ? (
+                                  letter.facultySecretarySignedAt ? (
+                                    <span className="text-green-600">
+                                      ✓ Faculty Secretary
+                                    </span>
+                                  ) : (
+                                    <span className="text-blue-600">
+                                      ✓ Faculty Secretary (inferred)
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-red-600">
+                                    ✗ Faculty Secretary
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {letter.notes && (
+                        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-600 mb-1">Notes:</p>
+                          <p className="text-sm">{letter.notes}</p>
+                        </div>
+                      )}
+
+                      <div className="text-sm text-gray-500 mb-2">
+                        <p>
+                          Cover letter generated: {formatDate(letter.createdAt)}
+                        </p>
+                        {letter.departmentChairSignedAt && (
+                          <p>
+                            Department chair signed:{" "}
+                            {formatDate(letter.departmentChairSignedAt)}
+                          </p>
+                        )}
+                        {letter.facultySecretarySignedAt && (
+                          <p>
+                            Faculty secretary signed:{" "}
+                            {formatDate(letter.facultySecretarySignedAt)}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Debug information */}
+                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                        <p>
+                          <strong>Debug Info:</strong>
+                        </p>
+                        <p>
+                          Stage: "{letter.stage}" (length:{" "}
+                          {letter.stage?.length || 0})
+                        </p>
+                        <p>
+                          Department Chair Signed:{" "}
+                          {letter.departmentChairSigned ? "Yes" : "No"}
+                        </p>
+                        <p>
+                          Faculty Secretary Signed:{" "}
+                          {letter.facultySecretary ? "Yes" : "No"}
+                        </p>
+                        <p>
+                          Student Affairs Signed:{" "}
+                          {letter.studentAffairsSigned ? "Yes" : "No"}
+                        </p>
+                        <p>
+                          Should show button:{" "}
+                          {letter.stage === "PENDING_STUDENT_AFFAIRS" &&
+                          letter.departmentChairSigned &&
+                          letter.facultySecretary &&
+                          !letter.studentAffairsSigned
+                            ? "Yes"
+                            : "No"}
+                        </p>
+                        <p>Entry ID: {letter.entryId}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3 pt-4 border-t">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedCoverLetter(letter);
+                        setShowDetailsModal(true);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View Details
+                    </Button>
+
+                    {/* Show final approve button for cover letters pending student affairs signature */}
+                    {letter.stage === "PENDING_STUDENT_AFFAIRS" &&
+                      letter.departmentChairSigned &&
+                      letter.facultySecretary &&
+                      !letter.studentAffairsSigned && (
+                        <Button
+                          size="sm"
+                          className="bg-purple-500 hover:bg-purple-600 flex items-center gap-2"
+                          onClick={() => openSignModal(letter)}
+                          disabled={isSigningCoverLetter === letter.entryId}
+                        >
+                          {isSigningCoverLetter === letter.entryId ? (
+                            <Loader2 className="w-4 w-4 animate-spin" />
+                          ) : (
+                            <Award className="w-4 h-4" />
+                          )}
+                          {isSigningCoverLetter === letter.entryId
+                            ? "Signing..."
+                            : "Final Approval"}
+                        </Button>
+                      )}
+                  </div>
+                </div>
+              ))}
+
+              {coverLetters.length === 0 && (
+                <div className="text-center py-12">
+                  <Award className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No Cover Letters Pending
+                  </h3>
+                  <p className="text-gray-500">
+                    All cover letters have been processed and students have
+                    received final graduation approval.
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </main>
+
+      {/* Cover Letter Details Modal */}
+      {selectedCoverLetter && (
+        <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                Cover Letter Details - {selectedCoverLetter.studentName}{" "}
+                {selectedCoverLetter.studentLastName}
+              </DialogTitle>
+              <DialogDescription>
+                Complete information about this cover letter
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Student ID
+                  </p>
+                  <p className="text-sm">{selectedCoverLetter.studentId}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Department
+                  </p>
+                  <p className="text-sm">{selectedCoverLetter.department}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">GPA</p>
+                  <p className="text-sm">
+                    {selectedCoverLetter.gpa.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Credits Earned
+                  </p>
+                  <p className="text-sm">{selectedCoverLetter.creditsEarned}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Status</p>
+                  <div className="mt-1">
+                    {getStatusBadge(selectedCoverLetter.stage)}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Graduation Date
+                  </p>
+                  <p className="text-sm">
+                    {formatDate(selectedCoverLetter.graduationDate)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Approval Chain
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">Department Chair</span>
+                      <span className="text-sm">
+                        {selectedCoverLetter.departmentChairSigned ? (
+                          <span className="text-green-600">
+                            ✓ Signed{" "}
+                            {selectedCoverLetter.departmentChairSignedAt &&
+                              `on ${formatDate(
+                                selectedCoverLetter.departmentChairSignedAt
+                              )}`}
+                          </span>
+                        ) : (
+                          <span className="text-red-600">✗ Not Signed</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">Faculty Secretary</span>
+                      <span className="text-sm">
+                        {selectedCoverLetter.facultySecretary ? (
+                          <span className="text-green-600">
+                            ✓ Signed{" "}
+                            {selectedCoverLetter.facultySecretarySignedAt &&
+                              `on ${formatDate(
+                                selectedCoverLetter.facultySecretarySignedAt
+                              )}`}
+                          </span>
+                        ) : (
+                          <span className="text-red-600">✗ Not Signed</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-purple-50 rounded border-2 border-purple-200">
+                      <span className="text-sm font-medium">
+                        Student Affairs (Final)
+                      </span>
+                      <span className="text-sm">
+                        {selectedCoverLetter.studentAffairsSigned ? (
+                          <span className="text-green-600">
+                            ✓ Signed{" "}
+                            {selectedCoverLetter.studentAffairsSignedAt &&
+                              `on ${formatDate(
+                                selectedCoverLetter.studentAffairsSignedAt
+                              )}`}
+                          </span>
+                        ) : (
+                          <span className="text-purple-600">○ Pending</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {selectedCoverLetter.notes && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Notes</p>
+                  <p className="text-sm mt-1 p-3 bg-gray-50 rounded">
+                    {selectedCoverLetter.notes}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <p className="text-sm font-medium text-gray-600">
+                  Cover Letter Generated
+                </p>
+                <p className="text-sm">
+                  {formatDate(selectedCoverLetter.createdAt)}
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowDetailsModal(false)}
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Sign Cover Letter Modal */}
+      {selectedCoverLetter && (
+        <Dialog open={showSignModal} onOpenChange={setShowSignModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Award className="w-5 h-5" />
+                Final Graduation Approval
+              </DialogTitle>
+              <DialogDescription>
+                Provide final approval for {selectedCoverLetter.studentName}{" "}
+                {selectedCoverLetter.studentLastName}'s graduation
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <p className="text-sm font-medium">Student</p>
+                <p className="text-sm">
+                  {selectedCoverLetter.studentName}{" "}
+                  {selectedCoverLetter.studentLastName} (
+                  {selectedCoverLetter.studentId})
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Department</p>
+                <p className="text-sm">{selectedCoverLetter.department}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium">GPA</p>
+                  <p className="text-sm">
+                    {selectedCoverLetter.gpa.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Credits</p>
+                  <p className="text-sm">{selectedCoverLetter.creditsEarned}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="p-3 bg-green-50 border border-green-200 rounded">
+                  <div className="flex items-center gap-2 mb-2">
+                    <UserCheck className="w-4 h-4 text-green-600" />
+                    <p className="text-sm font-medium text-green-800">
+                      Previous Approvals Status
+                    </p>
+                  </div>
+                  <div className="space-y-1 text-sm text-green-700">
+                    <p>
+                      Department Chair:{" "}
+                      {selectedCoverLetter.departmentChairSigned ? (
+                        selectedCoverLetter.departmentChairSignedAt ? (
+                          <>
+                            ✓ Signed on{" "}
+                            {formatDate(
+                              selectedCoverLetter.departmentChairSignedAt
+                            )}
+                          </>
+                        ) : (
+                          <>✓ Signed (inferred from workflow)</>
+                        )
+                      ) : (
+                        "⚠️ Status unclear"
+                      )}
+                    </p>
+                    <p>
+                      Faculty Secretary:{" "}
+                      {selectedCoverLetter.facultySecretary ? (
+                        selectedCoverLetter.facultySecretarySignedAt ? (
+                          <>
+                            ✓ Signed on{" "}
+                            {formatDate(
+                              selectedCoverLetter.facultySecretarySignedAt
+                            )}
+                          </>
+                        ) : (
+                          <>✓ Signed (inferred from workflow)</>
+                        )
+                      ) : (
+                        "⚠️ Status unclear"
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Alert className="bg-purple-50 border-purple-200">
+                <Award className="h-4 w-4 text-purple-600" />
+                <AlertDescription className="text-purple-800">
+                  <strong>Final Approval:</strong> By signing this cover letter,
+                  you provide final approval for this student's graduation. This
+                  is the last step in the approval process and will mark the
+                  cover letter as FULLY_SIGNED.
+                </AlertDescription>
+              </Alert>
+
+              {actionError && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{actionError}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowSignModal(false)}
+                disabled={isSigningCoverLetter !== null}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() =>
+                  selectedCoverLetter &&
+                  handleSignCoverLetter(selectedCoverLetter.entryId)
+                }
+                disabled={isSigningCoverLetter !== null}
+                className="bg-purple-500 hover:bg-purple-600 text-white"
+              >
+                {isSigningCoverLetter ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Provide Final Approval
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <footer className="bg-[#990000] text-white py-4 px-6 text-center">
         <p>

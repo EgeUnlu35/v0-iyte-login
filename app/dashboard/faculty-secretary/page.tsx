@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { checkAuth, getSession } from "@/app/actions/auth";
+import { getCoverLettersForReview } from "@/app/actions/faculty-secretary";
 import FacultySecretaryClientLayout from "./FacultySecretaryClientLayout";
 
 export default async function FacultySecretaryPage() {
@@ -12,7 +13,18 @@ export default async function FacultySecretaryPage() {
   // TODO: Check role from session, if not faculty-secretary, redirect or show error
   const userName = session?.name || "Faculty Secretary";
 
-  // TODO: Fetch any necessary data specific to the faculty secretary role
+  // Fetch cover letters needing faculty secretary signature
+  const coverLettersResult = await getCoverLettersForReview();
+  const coverLetters = coverLettersResult.success
+    ? coverLettersResult.data.coverLetters
+    : [];
+  const error = !coverLettersResult.success ? coverLettersResult.error : null;
 
-  return <FacultySecretaryClientLayout userName={userName} />;
+  return (
+    <FacultySecretaryClientLayout
+      userName={userName}
+      coverLetters={coverLetters}
+      error={error}
+    />
+  );
 }
