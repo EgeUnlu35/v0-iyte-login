@@ -1270,105 +1270,108 @@ export default function DepartmentSecretaryClientLayout({
                               This graduation list has no entries.
                             </p>
                           ) : (
-                            selectedListDetail.entries.map((entry) => (
-                              <div
-                                key={entry.id}
-                                className="flex items-center justify-between p-3 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium truncate">
-                                    {entry.studentName} {entry.studentLastName}{" "}
-                                    ({entry.studentId})
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    GPA: {entry.gpa.toFixed(2)} | Credits:{" "}
-                                    {entry.creditsEarned} | Dept:{" "}
-                                    {entry.department}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Grad Date:{" "}
-                                    {new Date(
-                                      entry.graduationDate
-                                    ).toLocaleDateString()}
-                                  </p>
-                                  {entry.notes && (
-                                    <p className="text-xs text-amber-700 dark:text-amber-500 mt-1 break-words">
-                                      Notes: {entry.notes}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="flex items-center space-x-1.5 ml-2 flex-shrink-0">
-                                  {getStatusBadge(entry.status)}
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => handleOpenEditModal(entry)}
-                                    disabled={
-                                      entry.status === "COMPLETED" ||
-                                      isSavingEntry ||
-                                      isLoadingListDetail
-                                    }
-                                    title={
-                                      entry.status === "COMPLETED"
-                                        ? "Cannot edit completed entries"
-                                        : "Edit Entry"
-                                    }
-                                    className="h-7 w-7"
-                                  >
-                                    {isSavingEntry &&
-                                    editingEntry?.id === entry.id ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <Edit3 className="h-3.5 w-3.5" />
-                                    )}
-                                  </Button>
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    onClick={() =>
-                                      handleDeleteGraduationEntry(
-                                        entry.id,
-                                        `${entry.studentName} ${entry.studentLastName}`
+                            selectedListDetail.entries
+                              .sort((a, b) => b.gpa - a.gpa) // Sort by GPA descending (highest first)
+                              .map((entry) => (
+                                <div
+                                  key={entry.id}
+                                  className="flex items-center justify-between p-3 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate">
+                                      {entry.studentName}{" "}
+                                      {entry.studentLastName} ({entry.studentId}
                                       )
-                                    }
-                                    disabled={
-                                      isDeletingEntry === entry.id ||
-                                      entry.status === "COMPLETED" ||
-                                      isLoadingListDetail
-                                    }
-                                    title={
-                                      entry.status === "COMPLETED"
-                                        ? "Cannot delete completed entries"
-                                        : "Delete Entry"
-                                    }
-                                    className="h-7 w-7"
-                                  >
-                                    {isDeletingEntry === entry.id ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      GPA: {entry.gpa.toFixed(2)} | Credits:{" "}
+                                      {entry.creditsEarned} | Dept:{" "}
+                                      {entry.department}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Grad Date:{" "}
+                                      {new Date(
+                                        entry.graduationDate
+                                      ).toLocaleDateString()}
+                                    </p>
+                                    {entry.notes && (
+                                      <p className="text-xs text-amber-700 dark:text-amber-500 mt-1 break-words">
+                                        Notes: {entry.notes}
+                                      </p>
                                     )}
-                                  </Button>
-                                  {entry.status === "APPROVED" && (
+                                  </div>
+                                  <div className="flex items-center space-x-1.5 ml-2 flex-shrink-0">
+                                    {getStatusBadge(entry.status)}
                                     <Button
                                       variant="outline"
                                       size="icon"
-                                      onClick={() =>
-                                        handleOpenCoverLetterModal(entry)
-                                      }
-                                      title="Generate Cover Letter & Complete"
+                                      onClick={() => handleOpenEditModal(entry)}
                                       disabled={
-                                        isGeneratingCoverLetter ||
+                                        entry.status === "COMPLETED" ||
+                                        isSavingEntry ||
                                         isLoadingListDetail
+                                      }
+                                      title={
+                                        entry.status === "COMPLETED"
+                                          ? "Cannot edit completed entries"
+                                          : "Edit Entry"
                                       }
                                       className="h-7 w-7"
                                     >
-                                      <Mail className="h-3.5 w-3.5" />
+                                      {isSavingEntry &&
+                                      editingEntry?.id === entry.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <Edit3 className="h-3.5 w-3.5" />
+                                      )}
                                     </Button>
-                                  )}
+                                    <Button
+                                      variant="destructive"
+                                      size="icon"
+                                      onClick={() =>
+                                        handleDeleteGraduationEntry(
+                                          entry.id,
+                                          `${entry.studentName} ${entry.studentLastName}`
+                                        )
+                                      }
+                                      disabled={
+                                        isDeletingEntry === entry.id ||
+                                        entry.status === "COMPLETED" ||
+                                        isLoadingListDetail
+                                      }
+                                      title={
+                                        entry.status === "COMPLETED"
+                                          ? "Cannot delete completed entries"
+                                          : "Delete Entry"
+                                      }
+                                      className="h-7 w-7"
+                                    >
+                                      {isDeletingEntry === entry.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      )}
+                                    </Button>
+                                    {entry.status === "APPROVED" && (
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() =>
+                                          handleOpenCoverLetterModal(entry)
+                                        }
+                                        title="Generate Cover Letter & Complete"
+                                        disabled={
+                                          isGeneratingCoverLetter ||
+                                          isLoadingListDetail
+                                        }
+                                        className="h-7 w-7"
+                                      >
+                                        <Mail className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))
+                              ))
                           )}
                         </div>
                       </div>

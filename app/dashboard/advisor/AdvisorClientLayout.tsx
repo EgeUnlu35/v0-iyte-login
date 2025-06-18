@@ -214,7 +214,10 @@ export default function AdvisorClientLayout({
         color: "bg-blue-100 text-blue-800",
         text: "Under Review",
       },
-      APPROVED: { color: "bg-green-100 text-green-800", text: "Approved" },
+      APPROVED_BY_ADVISOR: {
+        color: "bg-green-100 text-green-800",
+        text: "Approved by Advisor",
+      },
       REJECTED: { color: "bg-red-100 text-red-800", text: "Rejected" },
       RETURNED_FOR_REVISION: {
         color: "bg-orange-100 text-orange-800",
@@ -228,7 +231,7 @@ export default function AdvisorClientLayout({
 
   const getActionButtonConfig = (action: ApplicationStatus) => {
     switch (action) {
-      case "APPROVED":
+      case "APPROVED_BY_ADVISOR":
         return {
           label: "Approve",
           icon: ThumbsUp,
@@ -327,8 +330,9 @@ export default function AdvisorClientLayout({
                   }{" "}
                   | Approved:{" "}
                   {
-                    applications.filter((app) => app.status === "APPROVED")
-                      .length
+                    applications.filter(
+                      (app) => app.status === "APPROVED_BY_ADVISOR"
+                    ).length
                   }{" "}
                   | Rejected:{" "}
                   {
@@ -469,11 +473,13 @@ export default function AdvisorClientLayout({
                       Edit GPA/Credits
                     </Button>
 
-                    {app.status !== "APPROVED" && (
+                    {app.status !== "APPROVED_BY_ADVISOR" && (
                       <Button
                         size="sm"
                         className="bg-green-500 hover:bg-green-600 flex items-center gap-2"
-                        onClick={() => openReviewModal(app, "APPROVED")}
+                        onClick={() =>
+                          openReviewModal(app, "APPROVED_BY_ADVISOR")
+                        }
                         disabled={isReviewing === app.id}
                       >
                         {isReviewing === app.id ? (
@@ -750,7 +756,7 @@ export default function AdvisorClientLayout({
 
               <div>
                 <Label htmlFor="feedback" className="text-sm font-medium">
-                  {reviewAction === "APPROVED"
+                  {reviewAction === "APPROVED_BY_ADVISOR"
                     ? "Approval Comments (Optional)"
                     : reviewAction === "REJECTED"
                     ? "Rejection Reason (Required)"
@@ -761,7 +767,7 @@ export default function AdvisorClientLayout({
                   value={reviewFeedback}
                   onChange={(e) => setReviewFeedback(e.target.value)}
                   placeholder={
-                    reviewAction === "APPROVED"
+                    reviewAction === "APPROVED_BY_ADVISOR"
                       ? "Add any comments about the approval..."
                       : reviewAction === "REJECTED"
                       ? "Please provide a clear reason for rejection..."

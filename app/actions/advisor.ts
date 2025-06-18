@@ -23,7 +23,7 @@ export interface GraduationApplication {
   missingCourses2?: string
 }
 
-export type ApplicationStatus = "APPROVED" | "REJECTED" | "RETURNED_FOR_REVISION"
+export type ApplicationStatus = "APPROVED_BY_ADVISOR" | "REJECTED" | "RETURNED_FOR_REVISION"
 
 export interface ReviewApplicationRequest {
   applicationId: string
